@@ -72,7 +72,7 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
                 time.sleep(10)
                 continue
             break
-
+        
         replay_buffer_size = ray.get(replay_buffer.size.remote())
         # replay_buffer_size = replay_buffer.size()
         print(f"{replay_buffer_size} num samples inside replay buffer...")
@@ -83,6 +83,7 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
         for i in range(config.num_sgd_iter):
             print(f"SGD step {i}...")
             # if demonstration_buffer is None:  # Uncomment for AlphaTensor-like training
+            breakpoint()
             train_batch, _ = ray.get(
                 replay_buffer.sample.remote(config.batch_size, config.frame_stack)
             )

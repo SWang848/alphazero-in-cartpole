@@ -24,17 +24,18 @@ if __name__ == "__main__":
     parser.add_argument("--num_cpus", default=8, type=float)
     parser.add_argument("--num_gpus", default=0, type=float)
     parser.add_argument("--num_cpus_per_worker", default=4, type=float)
-    parser.add_argument("--num_gpus_per_worker", default=0.25, type=float)
+    parser.add_argument("--num_gpus_per_worker", default=0, type=float)
     parser.add_argument("--num_test_episodes", default=200, type=float)
-    parser.add_argument(
-        "--model_path",
-        default="/home/swang848/efficientalphazero/results/cartpole_14082024_1540/model_latest.pt",
-    )
-    parser.add_argument("--device_workers", default="cuda", type=str)
-    parser.add_argument("--device_trainer", default="cuda", type=str)
+    parser.add_argument("--model_path", default=None)
+    # parser.add_argument(
+    #     "--model_path",
+    #     default="/home/swang848/efficientalphazero/results/cartpole_14082024_1540/model_latest.pt",
+    # )
+    parser.add_argument("--device_workers", default="cpu", type=str)
+    parser.add_argument("--device_trainer", default="cpu", type=str)
     parser.add_argument("--amp", action="store_true")
     parser.add_argument("--wandb", default=False, type=bool)
-    parser.add_argument("--debug", default=False, type=bool)
+    parser.add_argument("--debug", default=True, type=bool)
     parser.add_argument("--group_name", default="default", type=str)
 
     config_args = (

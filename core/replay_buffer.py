@@ -150,7 +150,7 @@ class TransitionBuffer:
     ) -> Tuple[TrainingBatch, np.ndarray]:
         if batch_size > self.size():
             print("Warning: trying to sample more samples than in transition buffer!")
-
+        breakpoint()
         alpha = 1.0
         probs = np.array(self.priorities) ** alpha
         probs /= probs.sum()
