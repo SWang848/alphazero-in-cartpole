@@ -118,11 +118,12 @@ def get_block_primitives_dict(xml_path) -> dict:
     Output: block_primitives dictionary
     """
     base_path = os.getenv("EDA_ROOT")
-
     tree = ET.parse(os.path.join(base_path, xml_path))
+    #tree = ET.parse(xml_path)
     root = tree.getroot()
 
     blocks_primitives_dict = __find_block(root)
+    #print("blocks_primitives_dict: ", blocks_primitives_dict)
     return blocks_primitives_dict
 
 
