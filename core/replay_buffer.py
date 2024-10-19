@@ -56,9 +56,9 @@ class TrainingBatch:
 
 class MCTSRollingWindow:
     def __init__(self, obs_shape, frame_stack):
-        self.obs_shape = obs_shape
-        self.frame_stack = frame_stack
-        self.obs = None
+        self.obs_shape = obs_shape        # (channel, board_height, board_width)
+        self.frame_stack = frame_stack    # number of observations to stack
+        self.obs = None                   # circular queue of size (frame_stack*board_channel, board_height, board_width)
         self.actions = None
         self.rewards = None
         self.env_state = None
@@ -72,12 +72,24 @@ class MCTSRollingWindow:
         self.env_state = None
         self.infos = [{} for _ in range(self.frame_stack)]
 
+    "
+    
     def add(self, obs, env_state, reward=None, action=None, info=None):
-        self.obs = np.roll(self.obs, self.obs_shape[0], axis=0)
+        """
+        Add a new observation(channel, width, height) to the rolling window(a circular queue of frame_stack frames).
+
+        Parameters:
+        obs (numpy array): The latest observation. (channel, board width, board height)
+        env_state (any): The copy of current enviornment class  
+        reward (float, optional): The reward received for the action. Defaults to 0.
+        action (int, optional): The action taken. Defaults to -1.
+        info (dict, optional): Additional information about the environment state. Defaults to an empty dictionary.
+        """
+        self.obs = np.roll(self.obs, self.obs_shape[0], axis=0)  # Shifts elements in the array.maintain a rolling window by discarding the oldest entry and making space for the new entry
         self.env_state = env_state
         self.infos = np.roll(self.infos, 1, axis=0)
         self.infos[0] = info if info is not None else {}
-        self.obs[: self.obs_shape[0]] = obs
+        self.obs[: self.obs_shape[0]] = obs    # fill 1st n channel with obs  obs[: n] = (:n,  board_height, board_width) = (n, board_height, board_width)
         self.rewards = np.roll(self.rewards, 1)
         self.rewards[0] = reward if reward is not None else 0
         self.actions = np.roll(self.actions, 1)
