@@ -12,7 +12,7 @@ from core.preprocess import Preprocess
 import numpy as np
 import pygame
 
-
+EDA_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 class Placement(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"]}
     black = (0, 0, 0)
@@ -23,7 +23,7 @@ class Placement(gym.Env):
     pink = (205, 162, 190)
     orange = (255, 229, 153)
 
-    def __init__(self, log_dir, simulator=False, render_mode=None):
+    def __init__(self, log_dir, simulator=False, render_mode=None, num_target_blocks=30):
         # metadata = {"render.modes": ["human"]}
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
@@ -32,7 +32,7 @@ class Placement(gym.Env):
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
         self.data_dir = os.path.join(self.base_dir, "..", "data")
         preprocess = Preprocess(
-            num_target_blocks=30,
+            num_target_blocks=num_target_blocks,
             pack_xml_path=os.path.join(self.data_dir, "tseng.net"),
             block_infos_file_path=os.path.join(self.data_dir, "block.infos"),
             primitive_netlist_file_path=os.path.join(
@@ -354,7 +354,7 @@ class Placement(gym.Env):
             self.observation_space["place_infos"].shape, -1, dtype=int
         )
         # place the initial blocks
-        file_path = os.path.join(os.getenv("EDA_ROOT"), "optimized.place")
+        file_path = os.path.join(EDA_ROOT, "data", "optimized.place")
         swappable_positions = [[], []]
         valid_positions = self.grid_constraints_dict["clb"].copy()
         with open(file_path, "r") as file:
@@ -519,7 +519,7 @@ class Placement(gym.Env):
             --route --route_chan_width 100 --analysis"
         )
         output = stream.read()
-        os.chdir(os.getenv("EDA_ROOT"))
+        os.chdir(EDA_ROOT)
 
         wirelength = int(
             re.search(".*Total wirelength: (.*), average net length:", output).groups()[
