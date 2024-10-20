@@ -72,7 +72,6 @@ class MCTSRollingWindow:
         self.env_state = None
         self.infos = [{} for _ in range(self.frame_stack)]
 
-    "
     
     def add(self, obs, env_state, reward=None, action=None, info=None):
         """
