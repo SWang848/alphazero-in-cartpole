@@ -69,6 +69,7 @@ if __name__ == "__main__":
         
     summary_writer = SummaryWriter(log_dir, flush_secs=10)
 
+    print("log_dir: ", log_dir)
     config = Config(
         log_dir=log_dir
     )  # Apply set BaseConfig arguments

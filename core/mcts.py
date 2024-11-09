@@ -251,7 +251,7 @@ class MCTS:
         self.env.reset()
         for simulation_index in range(self.config.num_simulations):
             windows = deepcopy(mcts_windows)
-            trajectories = roots.traverse(windows, min_max_stats)
+            trajectories = roots.traverse(windows, min_max_stats)  # traverse each roots until leaf node. return list of trajectories for each root
             
             dones = []
             leaf_nodes = []
@@ -264,7 +264,8 @@ class MCTS:
 
                 from_node = trajectory[-2]
                 to_node = trajectory[-1]
-                
+                if env_index == 0:
+                    print("mcts selected action for env: ", to_node.action) 
                 self.env = self.env.set_state(from_node.env_state)
                 obs, reward, done, info = self.env.step(to_node.action)
 
@@ -276,7 +277,7 @@ class MCTS:
                 infos.append(info)
                 
             # Calculate policy logits and value predictions for expanded nodes
-            priors, values = self.model.compute_priors_and_values(windows)
+            priors, values = self.model.compute_priors_and_values(windows)  # windows are obs stack of MCTS traversal nodes. Q: isnt the windows obs always the last n_frame nodes of the tree?
 
             debug = (
                 False  # Set to True for MCTS tree plotting (before and after backprop)

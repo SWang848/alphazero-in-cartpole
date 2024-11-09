@@ -10,8 +10,8 @@ class Config(BaseConfig):
 
     def __init__(
         self,
-        num_target_blocks: int = 30,
-        training_steps: int = 50,
+        num_target_blocks: int = 5,
+        training_steps: int = 1,
         pretrain_steps: int = 0,
         model_broadcast_interval: int = 1,
         model_save_interval: int = 5,
@@ -33,7 +33,7 @@ class Config(BaseConfig):
         hash_nodes: bool = False,
         root_dirichlet_alpha: float = 1.5,
         root_exploration_fraction: float = 0.25,
-        num_simulations: int = 50,
+        num_simulations: int = 5,
         num_envs_per_worker: int = 5,
         min_num_episodes_per_worker: int = 20,
         # min_num_episodes_per_worker: int = 8,

@@ -24,17 +24,18 @@ def trans_coordinate(coordinate: list, grid_size: int, out_type: str) -> list:
 
 
 def fill_place_file(
-    results,
+    results,  # place_coords: (numblocks, 2)
     grid_size,
     file_path=None,
 ):
+    print("in fill_place_file file path is ", file_path)
     new_lines = list()
     with open(file_path, "r") as file:
         results_dict = dict()
         for index, line in enumerate(file.readlines()):
             if index >= 5:
                 result = trans_coordinate(results[index - 5], grid_size, "vtr")
-
+                # counts the number of blocks in the same place result = [x, y]
                 if str(result) in results_dict.keys():
                     results_dict[str(result)] += 1
                 else:
@@ -45,13 +46,22 @@ def fill_place_file(
                 line_split[3] = str(result[1])
                 line_split[4] = str(results_dict[str(result)] - 1)
                 new_lines.append("\t".join(line_split) + "\n")
-
+                #print("result: ", result, " block: ", line_split[0])
+                if line_split[0] == "out:pv14_2_2_":
+                    #print(f'error block out:pv14_2_2_ at index {result}')
+                    #print(f'result for out:pv14_2_2_ ', results_dict[str(result)] - 1)
+                    pass
             elif index < 5:
                 new_lines.append(line)
+    """
+    error block out:pv14_2_2_ at index [2, 10] have subblick = 10 but it have capacity
+    
+    """
 
     with open(file_path, "w") as file:
         for line in new_lines:
             file.write(line)
+        print("file updated")
 
 def mlp(
         input_size,

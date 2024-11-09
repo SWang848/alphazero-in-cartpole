@@ -58,7 +58,7 @@ class Placement(gym.Env):
         if self.simulator:
             # gurantee the simulator path is valid
             self.log_file_path = os.path.join(
-                self.log_dir, str(random.randint(0, 9999))
+                self.log_dir, str(random.randint(0, 0))
             )
             if not os.path.exists(self.log_file_path):
                 os.makedirs(self.log_file_path)
@@ -266,11 +266,13 @@ class Placement(gym.Env):
         return normalized_reward
 
     def call_simulator(self, place_coords, width):
+        print("call simulator capacity grid ", self.board_image[0])
         fill_place_file(
             place_coords,
             width,
             os.path.join(self.log_file_path, "tseng.place"),
         )
+        print("done fill place file")
         (wire_term, critical_path_delay, wirelength) = self.episode_reward(
             self.log_file_path
         )
@@ -286,7 +288,12 @@ class Placement(gym.Env):
         return deepcopy(self)
 
     def _get_observation(self, block_index, coord_x, coord_y):
-
+        """
+        self.place_infos: 230 x 7 matrix 230 is number of blocks
+        
+        
+        
+        """
         current_block_coord_x = self.place_coords[block_index][0]
         current_block_coord_y = self.place_coords[block_index][1]
 
@@ -297,6 +304,7 @@ class Placement(gym.Env):
             self.place_order[(self.num_step_episode + 1) % self.num_blocks]
         ][1]
 
+        #print("block index", block_index)
         # place block to empty grid
         if self.board_image[0, coord_x, coord_y] == 0:
             # place_info update
@@ -315,6 +323,7 @@ class Placement(gym.Env):
 
         # swap block
         elif self.board_image[0, coord_x, coord_y] != 0:
+            #print("swap block")
             # place_info update
             swap_block_index = int(
                 np.where(np.all(self.place_coords == [coord_x, coord_y], axis=1))[0]
@@ -512,6 +521,8 @@ class Placement(gym.Env):
 
     def episode_reward(self, log_file_path):
         os.chdir(log_file_path)
+
+        breakpoint()
         stream = os.popen(
             "$VTR_ROOT/vpr/vpr \
             $VTR_ROOT/vtr_flow/arch/timing/EArch.xml \
@@ -565,7 +576,7 @@ class Placement(gym.Env):
         self._draw_info_bar()
         pygame.display.flip()
 
-        pygame.time.delay(5000)
+        pygame.time.delay(10000)
 
     def _draw_grid(self):
         for x in range(self.grid_height_size):
