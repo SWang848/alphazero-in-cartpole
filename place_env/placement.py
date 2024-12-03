@@ -127,6 +127,8 @@ class Placement(gym.Env):
                 (self.window_width, self.window_height)
             )
             self.font = pygame.font.Font(None, 24)
+        
+        self.last_reward = None
 
     def step(self, action):
         x = action // self.width
@@ -193,6 +195,7 @@ class Placement(gym.Env):
         self.place_infos = self.init_place_infos.copy()
 
         hpwl = self.calculate_hpwl()
+        self.last_reward = hpwl
 
         if self.simulator:
             (wire_term, critical_path_delay, wirelength) = self.call_simulator(
@@ -296,13 +299,16 @@ class Placement(gym.Env):
             max_hpwl = 5700
 
         # scaled_reward = (best_hpwl_results - hpwl) / 1000
-        normalized_reward = (1 - ((hpwl - best_hpwl) / (max_hpwl - best_hpwl))) * 1
-        normalized_reward = max(0, min(1, normalized_reward))
-        normalized_reward = normalized_reward - 1
+        #normalized_reward = (1 - ((hpwl - best_hpwl) / (max_hpwl - best_hpwl))) * 1
+        #normalized_reward = max(0, min(1, normalized_reward))
+        #normalized_reward = normalized_reward - 1
 
         # normalized_reward = -hpwl / 1000
+        reward = self.last_reward - hpwl 
+        self.last_reward = reward
 
-        return normalized_reward
+        value_support_size = 40  # TODO: pass value support size to ENV so I dont have to hard code
+        return reward
 
     def call_simulator(self, place_coords, width):
         fill_place_file(
