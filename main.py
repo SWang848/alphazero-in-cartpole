@@ -121,7 +121,7 @@ if __name__ == "__main__":
             #args.model_path = (
             #    "/home/truong/Documents/pytorch/alphazero-in-cartpole/saved_weights/Place-v0_04122024_2259_59/model_latest.pt"
             #)
-            test(args, config, model, log_dir)
+            test(args, config, model, log_dir, file_name="model_latest.pt")
         elif opr == "test_all":
             test_multiple(args, config, log_dir, "/home/truong/Documents/pytorch/alphazero-in-cartpole/saved_weights")
         elif opr == "pretrain":

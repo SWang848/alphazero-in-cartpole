@@ -13,7 +13,7 @@ import torch
 import random
 
 
-def test(args, config, model, log_dir, plot_dict=None):
+def test(args, config, model, log_dir, file_name, plot_dict=None):
     print("Starting testing...")
     ray.init()
     print("Ray initialized")
@@ -56,9 +56,9 @@ def test(args, config, model, log_dir, plot_dict=None):
         #print(stats)
     if plot_dict is not None:
         name = "model" + str(random.randint(0, 1000))
-        plot_dict[name] = {}
-        plot_dict[name]["reward"] = evaulation_stats_all["reward"]
-        plot_dict[name]["action"] = evaulation_stats_all["action"]
+        plot_dict[file_name] = {}
+        plot_dict[file_name]["reward"] = evaulation_stats_all["reward"]
+        plot_dict[file_name]["action"] = evaulation_stats_all["action"]
         
     accum_stats = {}  # Calculate stats
     for k, v in test_stats_all.items():
@@ -99,21 +99,24 @@ def test_multiple(args, config, log_dir, saved_weight_path):
     #args.model_path = (
     #    "/home/truong/Documents/pytorch/alphazero-in-cartpole/saved_weights/Place-v0_04122024_2259_59/model_latest.pt"
     #)
-    model_path_list = []
+    model_path_list = []  # tuple of (absolute path, file name)
+
     for root, dirs, files in os.walk(saved_weight_path):
         for file in files:
-            if file == 'model_latest.pt':
-                model_path_list.append(os.path.join(root, file))
+            #if file == 'model_latest.pt':
+            if file.endswith('.pt'):
+                model_path_list.append((os.path.join(root, file), file))
     print(model_path_list)
     plot_dict = {}
     plot_dict["opt"] = {}
     plot_dict["opt"]["reward"] = [-34.59520000000066, -21.637000000000626, 87.22398000000157, -24.536960000001272, -1.7815600000003542, 32.41208000000006, 48.9424199999994, -16.438239999999496, -15.769820000000436, 73.53977999999915, -27.99797999999919, 317.3229000000006, 100.13808000000108, 138.94956000000047, 0.0]
     plot_dict["opt"]["action"] = [40, 63, 81, 51, 40, 19, 30, 30, 29, 106, 97, 52, 40, 31, 97]
-    for path in model_path_list:
+    for path, filename in model_path_list:
         model = config.init_model(args.device_trainer, args.amp)
         model.load_state_dict(torch.load(path, map_location=args.device_trainer))
-        test(args, config, model, log_dir, plot_dict=plot_dict)
-    plot(plot_dict) 
+        test(args, config, model, log_dir, filename, plot_dict=plot_dict)
+    plot_reward(plot_dict, args) 
+    plot_action(plot_dict, args)
     return
 
 """
@@ -126,16 +129,34 @@ args:
         }, ...
     }
 """
-def plot(plot_dict):
+def plot_reward(plot_dict, args):
     plt.figure(figsize=(10, 6))
     for name, values in plot_dict.items():
         plt.plot(values['reward'], label=name)
     # Adding labels and title
-    plt.xlabel('Index')
-    plt.ylabel('Value')
-    plt.title('Plot of r arrays for each name')
+    plt.xlabel('action step')
+    plt.ylabel('reward =(prev_hpwl-new_hpwl)')
+    plt.title(f'reward vs action on {args.num_target_blocks} blocks')
     plt.legend()
 
+    # Display the plot
+    plt.show()
+    return
+
+"""
+Same as plot_reward but for action
+
+
+"""
+def plot_action(plot_dict, args):
+    plt.figure(figsize=(10, 6))
+    for name, values in plot_dict.items():
+        plt.plot(values['action'], label=name)
+    # Adding labels and title
+    plt.xlabel('action step')
+    plt.ylabel('action')
+    plt.title(f'action vs action on {args.num_target_blocks} blocks')
+    plt.legend()
     # Display the plot
     plt.show()
     return
