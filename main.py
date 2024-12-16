@@ -12,7 +12,7 @@ from datetime import datetime
 
 from core.pretrain import pretrain
 from core.train import train
-from core.test import test
+from core.test import test, test_multiple
 from config.place import Config
 
 
@@ -38,8 +38,8 @@ if __name__ == "__main__":
     #     "--model_path",
     #     default="/home/swang848/efficientalphazero/results/cartpole_14082024_1540/model_latest.pt",
     # )
-    parser.add_argument("--device_workers", default="cuda", type=str)
-    parser.add_argument("--device_trainer", default="cuda", type=str)
+    parser.add_argument("--device_workers", default="cpu", type=str)
+    parser.add_argument("--device_trainer", default="cpu", type=str)
     parser.add_argument("--amp", action="store_true")
     parser.add_argument("--wandb", action="store_true")
     parser.add_argument("--cc", action="store_true")
@@ -94,19 +94,6 @@ if __name__ == "__main__":
         f'Overwriting "replay_buffer_size" config entry with {args.num_rollout_workers * config.min_num_episodes_per_worker * config.num_target_blocks * 4}'
     )
 
-    # for evaluation purposes
-    # config.num_envs_per_worker = 1
-    # config.num_simulations = 70
-    # args.opr = "test"
-    # args.num_rollout_workers = 1
-    # args.num_cpus_per_worker = 16
-    # args.num_gpus_per_worker = 1
-    # args.num_test_episodes = 1
-    # config.num_target_blocks = 15
-    # config.c_init = 2
-    # args.model_path = (
-    #     "/home/swang848/efficientalphazero/saved_weights/15b/Place-v0_25112024_1227/model_latest.pt"
-    # )
     print(args)
 
     if args.wandb and not args.debug:
@@ -114,14 +101,29 @@ if __name__ == "__main__":
 
     model = config.init_model(args.device_trainer, args.amp)  # Create (and load) model
     if args.model_path is not None:
-        model.load_state_dict(torch.load(args.model_path))
+        model.load_state_dict(torch.load(args.model_path, map_location=args.device_trainer))
 
     opr_lst = args.opr.split(",")
     for opr in opr_lst:
         if opr == "train":
             train(args, config, model, summary_writer, log_dir)
         elif opr == "test":
+            # for evaluation purposes
+            config.num_envs_per_worker = 1
+            config.num_simulations = 10
+            #args.opr = "test"
+            args.num_rollout_workers = 1
+            args.num_cpus_per_worker = 1
+            args.num_gpus_per_worker = 0
+            args.num_test_episodes = 1
+            config.num_target_blocks = 15
+            config.c_init = 1.25
+            #args.model_path = (
+            #    "/home/truong/Documents/pytorch/alphazero-in-cartpole/saved_weights/Place-v0_04122024_2259_59/model_latest.pt"
+            #)
             test(args, config, model, log_dir)
+        elif opr == "test_all":
+            test_multiple(args, config, log_dir, "/home/truong/Documents/pytorch/alphazero-in-cartpole/saved_weights")
         elif opr == "pretrain":
             pretrain(args, config, model, summary_writer, log_dir)
 
