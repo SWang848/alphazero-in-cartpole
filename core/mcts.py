@@ -339,7 +339,7 @@ class MCTS:
 
                 root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                 index = roots.roots[0].info["episode_steps"]
-                if simulation_index == self.config.num_simulations - 1 and index == 14:
+                if simulation_index == self.config.num_simulations - 1 and index == 0:
                     plot_tree(
                         roots.roots[0],
                         leaf_nodes[0],

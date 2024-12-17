@@ -122,7 +122,7 @@ def mlp(
     return nn.Sequential(*layers)
 
 
-def plot_node(V_est, traj_nodes, leaf_node, graph: graphviz.Digraph, parent_node, index, min_max_stats, parent_name=None):
+def plot_node(V_est, traj_nodes, leaf_node, graph: graphviz.Digraph, parent_node, index, min_max_stats, parent_name=None, layer=2):
     def node_name(node, index):
         node_name = f'{index}\n' \
                     f'V = {min_max_stats.normalize(node.mean_value()) if node.num_visits > 0 else 0.0:.3f}\n' \
@@ -166,14 +166,22 @@ def plot_node(V_est, traj_nodes, leaf_node, graph: graphviz.Digraph, parent_node
     else:
         index += len(child_names) + 1
 
+    if index > len(child_names) * layer:
+        return index
+        
     j = 0
     for _, (_, child_node) in enumerate(parent_node.children.items()):
         if parent_node.info["action_mask"][child_node.action] == 0:
             continue
-        child_name = child_names[j]
+        
         j += 1
-        index = plot_node(V_est, traj_nodes, leaf_node, graph, child_node, index, min_max_stats, parent_name=child_name)
-
+        if child_node.action != 49:
+            continue
+        
+        child_name = child_names[j-1]
+        
+        index = plot_node(V_est, traj_nodes, leaf_node, graph, child_node, index, min_max_stats, parent_name=child_name, layer=layer)
+            
     return index
 
 

@@ -42,8 +42,8 @@ def test(args, config, model, log_dir):
         # stats["info"] = evaulation_stats_all["info"][i]
         stats["mcts_policy"] = evaulation_stats_all["mcts_policy"][i]
         stats["value_target"] = evaulation_stats_all["value_target"][i]
-        # print(f"step: {i}\n")
-        # print(stats)
+        print(f"step: {i}\n")
+        print(stats)
         
         
     accum_stats = {}  # Calculate stats
