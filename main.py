@@ -38,8 +38,8 @@ if __name__ == "__main__":
     #     "--model_path",
     #     default="/home/swang848/efficientalphazero/results/cartpole_14082024_1540/model_latest.pt",
     # )
-    parser.add_argument("--device_workers", default="cpu", type=str)
-    parser.add_argument("--device_trainer", default="cpu", type=str)
+    parser.add_argument("--device_workers", default="cuda", type=str)
+    parser.add_argument("--device_trainer", default="cuda", type=str)
     parser.add_argument("--amp", action="store_true")
     parser.add_argument("--wandb", action="store_true")
     parser.add_argument("--cc", action="store_true")
