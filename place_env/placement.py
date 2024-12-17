@@ -303,11 +303,12 @@ class Placement(gym.Env):
         #normalized_reward = max(0, min(1, normalized_reward))
         #normalized_reward = normalized_reward - 1
 
-        # normalized_reward = -hpwl / 1000
         reward = self.last_hpwl - hpwl 
         self.last_hpwl = hpwl
-
-        value_support_size = 40  # TODO: pass value support size to ENV so I dont have to hard code
+        # observersed hpwl diff range: [-300, 300]
+        # target reward range: [-1, 0]
+        # (r - r_min) / (r_max - r_min) - 1
+        reward = (reward - (-300)) / (300 - (-300)) - 1
         return reward
 
     def call_simulator(self, place_coords, width):
