@@ -45,6 +45,10 @@ def test(args, config, model, log_dir, file_name, plot_dict=None):
     print("opt rew is ", opt_rew)
     print("opt action is ", opt_action)    
 
+    hpwl_list = []
+    for item in evaulation_stats_all['info']:
+        hpwl_list.append(item['hpwl'])
+    
     stats = {}
     for i in range(len(evaulation_stats_all["action"])):
         stats["action"] = evaulation_stats_all["action"][i]
@@ -59,6 +63,7 @@ def test(args, config, model, log_dir, file_name, plot_dict=None):
         plot_dict[file_name] = {}
         plot_dict[file_name]["reward"] = evaulation_stats_all["reward"]
         plot_dict[file_name]["action"] = evaulation_stats_all["action"]
+        plot_dict[file_name]['hpwl'] = hpwl_list
         
     accum_stats = {}  # Calculate stats
     for k, v in test_stats_all.items():
@@ -105,20 +110,38 @@ def test_multiple(args, config, log_dir, saved_weight_path):
         for file in files:
             #if file == 'model_latest.pt':
             if file.endswith('.pt'):
-                model_path_list.append((os.path.join(root, file), file))
+                parent_dir = root.split('/')[-1]
+                model_path_list.append((os.path.join(root, file), parent_dir +  "/" + file))
     print(model_path_list)
     plot_dict = {}
     plot_dict["opt"] = {}
-    plot_dict["opt"]["reward"] = [-34.59520000000066, -21.637000000000626, 87.22398000000157, -24.536960000001272, -1.7815600000003542, 32.41208000000006, 48.9424199999994, -16.438239999999496, -15.769820000000436, 73.53977999999915, -27.99797999999919, 317.3229000000006, 100.13808000000108, 138.94956000000047, 0.0]
-    plot_dict["opt"]["action"] = [40, 63, 81, 51, 40, 19, 30, 30, 29, 106, 97, 52, 40, 31, 97]
+    plot_dict["opt"]["reward"] = [10.0, 81.67260000000078, 289.1805400000003, -37.78616000000102, 171.79964000000064, 9.438239999999496, 49.610839999999826, -15.975860000000466, 37.132820000000265, 280.11299999999983, 5.284520000000157, 364.89194000000043, 135.07496000000037, 176.4788199999998, 0.0]
+    plot_dict["opt"]["action"] = [49, 51, 81, 40, 60, 30, 41, 31, 19, 70, 52, 29, 62, 63, 53]
+    plot_dict["opt"]["hpwl"] =  [4280.50112, 4198.828519999999, 3909.647979999999, 3947.43414, 3775.634499999999, 3766.1962599999997, 3716.58542, 3732.5612800000004, 3695.42846, 3415.3154600000003, 3410.03094, 3045.1389999999997, 2910.0640399999993, 2733.5852199999995]
     for path, filename in model_path_list:
         model = config.init_model(args.device_trainer, args.amp)
         model.load_state_dict(torch.load(path, map_location=args.device_trainer))
         test(args, config, model, log_dir, filename, plot_dict=plot_dict)
+    plot_hpwl(plot_dict, args)
     plot_reward(plot_dict, args) 
     plot_action(plot_dict, args)
     return
 
+def plot_hpwl(plot_dict, args):
+    plt.figure(figsize=(10, 6))
+    for name, values in plot_dict.items():
+        plt.plot(values['hpwl'], label=name)
+    # Adding labels and title
+    plt.xlabel('action step')
+    plt.ylabel('hpwl')
+    plt.title(f'hpwl vs action on {args.num_target_blocks} blocks')
+    plt.legend()
+
+    # Display the plot
+    # save plot
+    plt.savefig('hpwl.png')
+    plt.show()
+    return
 """
 Plot reward for each model
 args:
@@ -140,6 +163,8 @@ def plot_reward(plot_dict, args):
     plt.legend()
 
     # Display the plot
+    # save plot
+    plt.savefig('reward_plot.png')
     plt.show()
     return
 
@@ -158,5 +183,6 @@ def plot_action(plot_dict, args):
     plt.title(f'action vs action on {args.num_target_blocks} blocks')
     plt.legend()
     # Display the plot
+    plt.savefig('action_plot.png')
     plt.show()
     return
