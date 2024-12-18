@@ -308,7 +308,7 @@ class Placement(gym.Env):
         # observersed hpwl diff range: [-300, 300]
         # target reward range: [-1, 0]
         # (r - r_min) / (r_max - r_min) - 1
-        reward = (reward - (-300)) / (300 - (-300)) - 1
+        reward = reward / 300
         return reward
 
     def call_simulator(self, place_coords, width):
