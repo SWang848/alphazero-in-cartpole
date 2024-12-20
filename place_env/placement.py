@@ -288,8 +288,8 @@ class Placement(gym.Env):
             max_hpwl = 4900
         elif self.num_blocks == 45:
             # 45 blocks hpwl range
-            best_hpwl = 0
-            max_hpwl = 0
+            best_hpwl = 2600
+            max_hpwl = 5600
         elif self.num_blocks == 56:
             # 56 blocks hpwl range
             best_hpwl = 2600
