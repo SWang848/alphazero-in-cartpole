@@ -38,12 +38,14 @@ def test(args, config, model, log_dir, file_name, plot_dict=None):
         test_stats, evaulation_stats_all = ray.get(test_worker.get_stats.remote())
         add_logs(test_stats, test_stats_all)
         add_logs(test_stats, evaulation_stats_all)
-    opt_rew = [-34.59520000000066, -21.637000000000626, 87.22398000000157, -24.536960000001272, -1.7815600000003542, 32.41208000000006, 48.9424199999994, -16.438239999999496, -15.769820000000436, 73.53977999999915, -27.99797999999919, 317.3229000000006, 100.13808000000108, 138.94956000000047, 0.0]
-    opt_action = [40, 63, 81, 51, 40, 19, 30, 30, 29, 106, 97, 52, 40, 31, 97]
-    print("res stats ", evaulation_stats_all["reward"])
-    print("action stats ", evaulation_stats_all["action"])
-    print("opt rew is ", opt_rew)
-    print("opt action is ", opt_action)    
+
+
+    #opt_rew = [-34.59520000000066, -21.637000000000626, 87.22398000000157, -24.536960000001272, -1.7815600000003542, 32.41208000000006, 48.9424199999994, -16.438239999999496, -15.769820000000436, 73.53977999999915, -27.99797999999919, 317.3229000000006, 100.13808000000108, 138.94956000000047, 0.0]
+    #opt_action = [40, 63, 81, 51, 40, 19, 30, 30, 29, 106, 97, 52, 40, 31, 97]
+    #print("res stats ", evaulation_stats_all["reward"])
+    #print("action stats ", evaulation_stats_all["action"])
+    #print("opt rew is ", opt_rew)
+    #print("opt action is ", opt_action)    
 
     hpwl_list = []
     for item in evaulation_stats_all['info']:
@@ -100,24 +102,40 @@ def test_multiple(args, config, log_dir, saved_weight_path):
     args.num_gpus_per_worker = 0
     args.num_test_episodes = 1
     config.num_target_blocks = 15
+    args.num_target_blocks = 15
     config.c_init = 1.25
     #args.model_path = (
     #    "/home/truong/Documents/pytorch/alphazero-in-cartpole/saved_weights/Place-v0_04122024_2259_59/model_latest.pt"
     #)
     model_path_list = []  # tuple of (absolute path, file name)
-
+    scale = False
     for root, dirs, files in os.walk(saved_weight_path):
         for file in files:
-            #if file == 'model_latest.pt':
-            if file.endswith('.pt'):
+            #if file.endswith('.pt'):
+            if file == 'model_latest.pt':
                 parent_dir = root.split('/')[-1]
                 model_path_list.append((os.path.join(root, file), parent_dir +  "/" + file))
+                if "scale" in parent_dir:
+                    scale = True
     print(model_path_list)
     plot_dict = {}
     plot_dict["opt"] = {}
-    plot_dict["opt"]["reward"] = [10.0, 81.67260000000078, 289.1805400000003, -37.78616000000102, 171.79964000000064, 9.438239999999496, 49.610839999999826, -15.975860000000466, 37.132820000000265, 280.11299999999983, 5.284520000000157, 364.89194000000043, 135.07496000000037, 176.4788199999998, 0.0]
-    plot_dict["opt"]["action"] = [49, 51, 81, 40, 60, 30, 41, 31, 19, 70, 52, 29, 62, 63, 53]
-    plot_dict["opt"]["hpwl"] =  [4280.50112, 4198.828519999999, 3909.647979999999, 3947.43414, 3775.634499999999, 3766.1962599999997, 3716.58542, 3732.5612800000004, 3695.42846, 3415.3154600000003, 3410.03094, 3045.1389999999997, 2910.0640399999993, 2733.5852199999995]
+    if config.num_target_blocks == 15:
+        print("15 block opt")
+        plot_dict["opt"]["reward"] = [10.0, 81.67260000000078, 289.1805400000003, -37.78616000000102, 171.79964000000064, 9.438239999999496, 49.610839999999826, -15.975860000000466, 37.132820000000265, 280.11299999999983, 5.284520000000157, 364.89194000000043, 135.07496000000037, 176.4788199999998, 0.0]
+        plot_dict["opt"]["action"] = [49, 51, 81, 40, 60, 30, 41, 31, 19, 70, 52, 29, 62, 63, 53]
+        plot_dict["opt"]["hpwl"] =  [4280.50112, 4198.828519999999, 3909.647979999999, 3947.43414, 3775.634499999999, 3766.1962599999997, 3716.58542, 3732.5612800000004, 3695.42846, 3415.3154600000003, 3410.03094, 3045.1389999999997, 2910.0640399999993, 2733.5852199999995]
+    elif config.num_target_blocks == 5:
+        print("5 block opt")
+        plot_dict["opt"]["reward"] = [0, 300.4056000000005, 6.589940000000297, 48.78236000000015, 211.02423999999883]
+        plot_dict["opt"]["action"] = [52, 30, 29, 40, 19]
+        plot_dict["opt"]["hpwl"] = [3362.0650799999994, 3061.659479999999, 3055.0695399999986, 3006.2871799999984, 2795.2629399999996]
+
+    #if scale:
+    #    for i in range(len(plot_dict["opt"]["reward"])):
+    #        plot_dict["opt"]["reward"][i] = scale_hpwl(plot_dict["opt"]["reward"][i])
+             
+
     for path, filename in model_path_list:
         model = config.init_model(args.device_trainer, args.amp)
         model.load_state_dict(torch.load(path, map_location=args.device_trainer))
@@ -126,6 +144,17 @@ def test_multiple(args, config, log_dir, saved_weight_path):
     plot_reward(plot_dict, args) 
     plot_action(plot_dict, args)
     return
+
+"""
+same as get_hpwl from placement.py
+
+"""
+def scale_hpwl(hpwl):
+    # observersed hpwl diff range: [-300, 300]
+    # target reward range: [-1, 0]
+    # (r - r_min) / (r_max - r_min) - 1
+    reward = (hpwl - (-300)) / (300 - (-300)) - 1
+    return reward
 
 def plot_hpwl(plot_dict, args):
     plt.figure(figsize=(10, 6))
