@@ -34,10 +34,6 @@ if __name__ == "__main__":
     parser.add_argument("--num_gpus_per_worker", default=0.25, type=float)
     parser.add_argument("--num_test_episodes", default=200, type=float)
     parser.add_argument("--model_path", default=None)
-    # parser.add_argument(
-    #     "--model_path",
-    #     default="/home/swang848/efficientalphazero/results/cartpole_14082024_1540/model_latest.pt",
-    # )
     parser.add_argument("--device_workers", default="cuda", type=str)
     parser.add_argument("--device_trainer", default="cuda", type=str)
     parser.add_argument("--amp", action="store_true")
@@ -51,8 +47,11 @@ if __name__ == "__main__":
     parser.add_argument("--num_simulations", default=100, type=int)
     parser.add_argument("--num_envs_per_worker", default=5, type=int)
     parser.add_argument("--min_num_episodes_per_worker", default=20, type=int)
-    parser.add_argument("--training_steps", default=25, type=int)
+    parser.add_argument("--training_steps", default=30, type=int)
     parser.add_argument("--batch_size", default=64, type=int)
+    parser.add_argument("--value_support_min", default=-20, type=int)
+    parser.add_argument("--value_support_max", default=0, type=int)
+    parser.add_argument("--value_support_delta", default=1, type=int)
     args = parser.parse_args()
 
     set_seed(args.seed)
@@ -105,7 +104,7 @@ if __name__ == "__main__":
     # config.num_target_blocks = 15
     # config.c_init = 2
     # args.model_path = (
-    #     "/home/swang848/efficientalphazero/saved_weights/15b/Place-v0_30112024_1246_59/model_latest.pt"
+    #     "/home/swang848/efficientalphazero/saved_weights/15b/Place-v0_25112024_1227/model_0.pt"
     # )
     print(args)
 
