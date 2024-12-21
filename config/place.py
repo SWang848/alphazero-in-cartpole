@@ -10,6 +10,7 @@ class Config(BaseConfig):
 
     def __init__(
         self,
+        diff_reward:bool = False,
         num_target_blocks: int = 30,
         training_steps: int = 15,
         pretrain_steps: int = 0,
@@ -38,7 +39,7 @@ class Config(BaseConfig):
         min_num_episodes_per_worker: int = 10,
         use_dirichlet: bool = True,
         test_use_dirichlet: bool = False,
-        value_support: DiscreteSupport = DiscreteSupport(-5, 5, 1.0),
+        value_support: DiscreteSupport = DiscreteSupport(-300, 300, 1.0),
         value_transform: bool = True,
         log_dir: str = None,
     ):
@@ -76,6 +77,7 @@ class Config(BaseConfig):
         # rewrote by user agruments in the main.py 
         self.log_dir = log_dir
         self.num_target_blocks = num_target_blocks
+        self.diff_reward = diff_reward
 
     def init_model(self, device, amp):
         obs_shape = (self.obs_shape[0] * self.frame_stack,) + self.obs_shape[1:]
@@ -85,7 +87,7 @@ class Config(BaseConfig):
         model.to(device)
         return model
 
-    def env_creator(self, simulator=False, log_dir=None, num_target_blocks=30):
+    def env_creator(self, simulator=False, log_dir=None, num_target_blocks=30, diff_reward=False):
         if log_dir is None:
             log_dir = self.log_dir
-        return gym.make("Place-v0", log_dir=log_dir, simulator=simulator, num_target_blocks=num_target_blocks)
+        return gym.make("Place-v0", log_dir=log_dir, simulator=simulator, num_target_blocks=num_target_blocks, diff_reward=diff_reward)

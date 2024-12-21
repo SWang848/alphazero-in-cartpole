@@ -24,13 +24,12 @@ class Placement(gym.Env):
     orange = (255, 229, 153)
 
     def __init__(
-        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30
+        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30, diff_reward=False
     ):
         # metadata = {"render.modes": ["human"]}
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
-
         # In CC, the data path saved in the local disk is set in the environment variable.
         if "data" in os.environ:
             data_dir = os.environ["data"]
@@ -108,6 +107,7 @@ class Placement(gym.Env):
             )
         )
 
+        self.diff_reward = diff_reward
         # render
         self.grid_width_size = self.width
         self.grid_height_size = self.height
@@ -298,17 +298,19 @@ class Placement(gym.Env):
             best_hpwl = 2600
             max_hpwl = 5700
 
-        # scaled_reward = (best_hpwl_results - hpwl) / 1000
-        #normalized_reward = (1 - ((hpwl - best_hpwl) / (max_hpwl - best_hpwl))) * 1
-        #normalized_reward = max(0, min(1, normalized_reward))
-        #normalized_reward = normalized_reward - 1
-
-        reward = self.last_hpwl - hpwl 
-        self.last_hpwl = hpwl
-        # observersed hpwl diff range: [-300, 300]
-        # target reward range: [-1, 0]
-        # (r - r_min) / (r_max - r_min) - 1
-        reward = reward / 300
+        if self.diff_reward:
+            reward = self.last_hpwl - hpwl 
+            self.last_hpwl = hpwl
+            # observersed hpwl diff range: [-300, 300]
+            # target reward range: [-1, 0]
+            # (r - r_min) / (r_max - r_min) - 1
+            reward = reward / 300
+        else:
+            # scaled_reward = (best_hpwl_results - hpwl) / 1000
+            normalized_reward = (1 - ((hpwl - best_hpwl) / (max_hpwl - best_hpwl))) * 1
+            normalized_reward = max(0, min(1, normalized_reward))
+            normalized_reward = normalized_reward - 1
+            reward = normalized_reward
         return reward
 
     def call_simulator(self, place_coords, width):

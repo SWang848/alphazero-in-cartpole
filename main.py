@@ -53,6 +53,8 @@ if __name__ == "__main__":
     parser.add_argument("--min_num_episodes_per_worker", default=20, type=int)
     parser.add_argument("--training_steps", default=20, type=int)
     parser.add_argument("--batch_size", default=64, type=int)
+    parser.add_argument("--diff_reward", default=False, type=bool)
+
     args = parser.parse_args()
 
     set_seed(args.seed)
