@@ -27,6 +27,7 @@ class Placement(gym.Env):
         self, log_dir, simulator=False, render_mode=None, num_target_blocks=30
     ):
         # metadata = {"render.modes": ["human"]}
+        self.prev_actions = []
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
@@ -173,6 +174,8 @@ class Placement(gym.Env):
         if done:
             init_observation, _ = self.reset()
             next_block = init_observation["next_block"]
+        
+        self.prev_actions.append(self.action)
 
         return (
             {
@@ -237,6 +240,9 @@ class Placement(gym.Env):
                 i not in self.place_order
                 and (position[0] * self.width + position[1]) in valid_positions
             ):
+                valid_positions.remove(position[0] * self.width + position[1])
+
+            if (position[0] * self.width + position[1]) in self.prev_actions:
                 valid_positions.remove(position[0] * self.width + position[1])
 
         action_mask = np.zeros((self.height * self.width), dtype=int)
