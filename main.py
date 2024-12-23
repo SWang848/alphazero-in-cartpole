@@ -95,19 +95,6 @@ if __name__ == "__main__":
         f'Overwriting "replay_buffer_size" config entry with {args.num_rollout_workers * config.min_num_episodes_per_worker * config.num_target_blocks * 4}'
     )
 
-    # for evaluation purposes
-    # config.num_envs_per_worker = 1
-    # config.num_simulations = 100
-    # args.opr = "test"
-    # args.num_rollout_workers = 1
-    # args.num_cpus_per_worker = 16
-    # args.num_gpus_per_worker = 1
-    # args.num_test_episodes = 1
-    # config.num_target_blocks = 15
-    # config.c_init = 2
-    # args.model_path = (
-    #     "/home/swang848/efficientalphazero/saved_weights/15b/Place-v0_25112024_1227/model_0.pt"
-    # )
     print(args)
 
     if args.wandb and not args.debug:
