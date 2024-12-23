@@ -73,7 +73,7 @@ def test(args, config, model, log_dir, file_name, plot_dict=None):
         accum_stats[f"{k}_median"] = float(median(v))
         accum_stats[f"{k}_min"] = float(min(v))
         accum_stats[f"{k}_max"] = float(max(v))
-    #print(yaml.dump(accum_stats, allow_unicode=True, default_flow_style=False))
+    # print(yaml.dump(accum_stats, allow_unicode=True, default_flow_style=False))
 
     with open(os.path.join(log_dir, "result.yml"), "w") as yaml_file:  # Write to file
         yaml.dump(accum_stats, yaml_file, default_flow_style=False)

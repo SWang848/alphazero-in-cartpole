@@ -39,7 +39,9 @@ class Config(BaseConfig):
         min_num_episodes_per_worker: int = 10,
         use_dirichlet: bool = True,
         test_use_dirichlet: bool = False,
-        value_support: DiscreteSupport = DiscreteSupport(-300, 300, 1.0),
+        value_support_min: int = -50,
+        value_support_max: int = 0,
+        value_support_delta: int = 1,
         value_transform: bool = True,
         log_dir: str = None,
     ):
@@ -71,7 +73,9 @@ class Config(BaseConfig):
             min_num_episodes_per_worker,
             use_dirichlet,
             test_use_dirichlet,
-            value_support,
+            value_support_min,
+            value_support_max,
+            value_support_delta,
             value_transform,
         )
         # rewrote by user agruments in the main.py 

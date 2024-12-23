@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --nodes=1
-#SBATCH --gpus-per-node=2
+#SBATCH --gpus-per-node=1
 #SBATCH --ntasks-per-node=32
 #SBATCH --mem=32G
 #SBATCH --time=60:00:00
@@ -33,19 +33,19 @@ sleep 20
 PYTHONUNBUFFERED=1 python3 -u main.py --wandb --amp --cc --group_name c56b_longer --seed 0 \
                 --num_rollout_workers 8 --num_cpus_per_worker 4 --num_envs_per_worker 20 --num_gpus_per_worker 0.25 \
                 --min_num_episodes_per_worker 20 --num_target_blocks 56 --num_simulations $2 \
-                --training_steps 70 --c_init $1 
+                --training_steps 70 --c_init $1 --value_support_min -50 --value_support_max 0 --value_support_delta 1
 
 # c30b
 # PYTHONUNBUFFERED=1 python3 -u main.py --wandb --amp --cc --group_name c30b --seed 0 \
 #                 --num_rollout_workers 8 --num_cpus_per_worker 4 --num_envs_per_worker 10 --num_gpus_per_worker 0.25 \
 #                 --min_num_episodes_per_worker 20 --num_target_blocks 30 --num_simulations $2 \
-#                 --training_steps 35 --c_init $1 
+#                 --training_steps 35 --c_init $1 --value_support_min -50 --value_support_max 0 --value_support_delta 1
 
 # # c15b
 # PYTHONUNBUFFERED=1 python3 -u main.py --wandb --amp --cc --group_name c15b --seed 0 \
 #                 --num_rollout_workers 8 --num_cpus_per_worker 4 --num_envs_per_worker 10 --num_gpus_per_worker 0.25 \
 #                 --min_num_episodes_per_worker 20 --num_target_blocks 15 --num_simulations $2 \
-#                 --training_steps 25 --c_init $1 
+#                 --training_steps 25 --c_init $1 --value_support_min -50 --value_support_max 0 --value_support_delta 1
 
 cp -r $results/* /home/shang8/scratch/alphazero-in-cartpole/results/
 
@@ -53,5 +53,5 @@ cp -r $results/* /home/shang8/scratch/alphazero-in-cartpole/results/
 # PYTHONUNBUFFERED=1 python3 -u main.py --wandb --amp --cc --group_name c15b --seed 0 \
 #                 --num_rollout_workers 8 --num_cpus_per_worker 4 --num_gpus_per_worker 0.25 \
 #                 --min_num_episodes_per_worker 20 --num_target_blocks 15 --num_simulations 100 \
-#                 --training_steps 25 --c_init 1.25
+#                 --training_steps 25 --c_init 1.25 --value_support_min -50 --value_support_max 0 --value_support_delta 1
                 
