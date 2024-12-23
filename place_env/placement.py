@@ -189,6 +189,7 @@ class Placement(gym.Env):
         )
 
     def reset(self):
+        self.prev_actions = []
         self.num_step_episode = 0
         self.cumulative_reward = 0
         self.place_coords = self.init_place_coords.copy()
