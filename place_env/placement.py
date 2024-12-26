@@ -28,6 +28,7 @@ class Placement(gym.Env):
     ):
         # metadata = {"render.modes": ["human"]}
 
+        self.prev_actions = []
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
 
@@ -132,6 +133,7 @@ class Placement(gym.Env):
         x = action // self.width
         y = action % self.width
         self.action = action
+        self.prev_actions.append(self.action)
 
         block_index = self.place_order[self.num_step_episode % self.num_blocks]
         board_image, place_infos = self._get_observation(block_index, x, y)
@@ -173,7 +175,7 @@ class Placement(gym.Env):
         if done:
             init_observation, _ = self.reset()
             next_block = init_observation["next_block"]
-
+            
         return (
             {
                 "board_image": board_image,
@@ -191,6 +193,7 @@ class Placement(gym.Env):
         self.place_coords = self.init_place_coords.copy()
         self.board_image = self.init_board_image.copy()
         self.place_infos = self.init_place_infos.copy()
+        self.prev_actions = []
 
         hpwl = self.calculate_hpwl()
 
@@ -237,6 +240,9 @@ class Placement(gym.Env):
                 i not in self.place_order
                 and (position[0] * self.width + position[1]) in valid_positions
             ):
+                valid_positions.remove(position[0] * self.width + position[1])
+            
+            if (position[0] * self.width + position[1]) in self.prev_actions:
                 valid_positions.remove(position[0] * self.width + position[1])
 
         action_mask = np.zeros((self.height * self.width), dtype=int)
