@@ -1,6 +1,6 @@
 import typing
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, BooleanOptionalAction
 import os
 
 import torch
@@ -49,7 +49,8 @@ if __name__ == "__main__":
     parser.add_argument("--min_num_episodes_per_worker", default=20, type=int)
     parser.add_argument("--training_steps", default=30, type=int)
     parser.add_argument("--batch_size", default=64, type=int)
-    parser.add_argument("--diff_reward", default=False, type=bool)
+    parser.add_argument("--diff_reward",  type=bool, action=BooleanOptionalAction)
+    parser.add_argument("--mask_location",  type=bool, action=BooleanOptionalAction)
 
     parser.add_argument("--value_support_min", default=-20, type=int)
     parser.add_argument("--value_support_max", default=0, type=int)

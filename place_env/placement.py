@@ -24,7 +24,7 @@ class Placement(gym.Env):
     orange = (255, 229, 153)
 
     def __init__(
-        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30, diff_reward=False
+        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30, diff_reward=False, mask_location=False
     ):
         # metadata = {"render.modes": ["human"]}
         self.prev_actions = []
@@ -109,6 +109,7 @@ class Placement(gym.Env):
         )
 
         self.diff_reward = diff_reward
+        self.mask_location = mask_location
         # render
         self.grid_width_size = self.width
         self.grid_height_size = self.height
@@ -177,7 +178,8 @@ class Placement(gym.Env):
             init_observation, _ = self.reset()
             next_block = init_observation["next_block"]
         
-        self.prev_actions.append(self.action)
+        if self.mask_location:
+            self.prev_actions.append(self.action)
 
         return (
             {

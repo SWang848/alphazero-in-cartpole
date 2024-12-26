@@ -10,6 +10,7 @@ class Config(BaseConfig):
 
     def __init__(
         self,
+        mask_location:bool = False,
         diff_reward:bool = False,
         num_target_blocks: int = 30,
         training_steps: int = 15,
@@ -82,6 +83,7 @@ class Config(BaseConfig):
         self.log_dir = log_dir
         self.num_target_blocks = num_target_blocks
         self.diff_reward = diff_reward
+        self.mask_location = mask_location
 
     def init_model(self, device, amp):
         obs_shape = (self.obs_shape[0] * self.frame_stack,) + self.obs_shape[1:]
@@ -91,7 +93,7 @@ class Config(BaseConfig):
         model.to(device)
         return model
 
-    def env_creator(self, simulator=False, log_dir=None, num_target_blocks=30, diff_reward=False):
+    def env_creator(self, simulator=False, log_dir=None, num_target_blocks=30, diff_reward=False, mask_location=False):
         if log_dir is None:
             log_dir = self.log_dir
-        return gym.make("Place-v0", log_dir=log_dir, simulator=simulator, num_target_blocks=num_target_blocks, diff_reward=diff_reward)
+        return gym.make("Place-v0", log_dir=log_dir, simulator=simulator, num_target_blocks=num_target_blocks, diff_reward=diff_reward, mask_location=mask_location)
