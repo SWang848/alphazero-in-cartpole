@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
     summary_writer = SummaryWriter(log_dir, flush_secs=10)
 
-    config = Config(log_dir=log_dir)  # Apply set BaseConfig arguments
+    config = Config(log_dir=log_dir, value_support_max=args.value_support_max, value_support_min=args.value_support_min)  # Apply set BaseConfig arguments
 
     for arg, arg_val in vars(args).items():
         if hasattr(config, arg):
