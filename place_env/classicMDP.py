@@ -65,7 +65,6 @@ class ClassicPlacement(Placement):
         block_index = self.place_order[self.num_step_episode % self.num_blocks]
         board_image, place_infos = self._get_observation(block_index, x, y)
         
-        next_block = self.place_order[(self.num_step_episode + 1) % self.num_blocks]
         reward = 0
         hpwl = 0
         done = False
@@ -87,6 +86,7 @@ class ClassicPlacement(Placement):
         self.num_step += 1
         self.num_step_episode += 1
         action_mask = self.get_mask()
+        next_block = self.place_order[self.num_step_episode % self.num_blocks]
         
         infos = {
             "placed_block": block_index,
@@ -98,9 +98,6 @@ class ClassicPlacement(Placement):
             "action_mask": action_mask,
         }
 
-        if done:
-            init_observation, _ = self.reset()
-            next_block = init_observation["next_block"]
             
         return (
             {

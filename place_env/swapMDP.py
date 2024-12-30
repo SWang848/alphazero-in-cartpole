@@ -139,9 +139,6 @@ class SwapPlacement(Placement):
         block_index = self.place_order[self.num_step_episode % self.num_blocks]
         board_image, place_infos = self._get_observation(block_index, x, y)
 
-        action_mask = self.get_mask()
-        next_block = self.place_order[(self.num_step_episode + 1) % self.num_blocks]
-
         hpwl = self.calculate_hpwl()
         reward = self.hpwl_reward(hpwl)
         # if action == self.cheat_trajectory[self.num_step_episode]:
@@ -162,6 +159,8 @@ class SwapPlacement(Placement):
         self.cumulative_reward += 0.99**self.num_step_episode * reward
         self.num_step += 1
         self.num_step_episode += 1
+        action_mask = self.get_mask()
+        next_block = self.place_order[self.num_step_episode % self.num_blocks]
 
         infos = {
             "placed_block": block_index,
@@ -173,9 +172,6 @@ class SwapPlacement(Placement):
             "action_mask": action_mask,
         }
 
-        if done:
-            init_observation, _ = self.reset()
-            next_block = init_observation["next_block"]
             
         return (
             {
@@ -224,7 +220,7 @@ class SwapPlacement(Placement):
     def get_mask(self, block_index=None):
         if block_index is None:
             block_index = self.place_order[
-                (self.num_step_episode + 1) % self.num_blocks
+                self.num_step_episode % self.num_blocks
             ]
 
         block_type = self.blocks_list.loc[self.blocks_list["index"] == block_index][
