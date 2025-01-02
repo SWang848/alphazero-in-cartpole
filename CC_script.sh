@@ -35,6 +35,7 @@ sleep 20
 #                 --min_num_episodes_per_worker 20 --num_target_blocks 56 --num_simulations $2 \
 #                 --training_steps 70 --c_init $1 --value_support_min -50 --value_support_max 0 --value_support_delta 1
 
+
 # c30b
 # PYTHONUNBUFFERED=1 python3 -u main.py --wandb --amp --cc --group_name c30b --seed 0 \
 #                 --num_rollout_workers 8 --num_cpus_per_worker 2 --num_envs_per_worker 10 --num_gpus_per_worker 0.125 \
@@ -62,7 +63,7 @@ cp -r $results/* /home/shang8/scratch/alphazero-in-cartpole/results/
 
 # # c5b
 # PYTHONUNBUFFERED=1 python3 -u main.py --wandb --amp --cc --group_name c15b --seed 0 \
-#                 --num_rollout_workers 8 --num_cpus_per_worker 4 --num_gpus_per_worker 0.25 \
+#                 --num_rollout_workers 8 --num_cpus_per_worker 2 --num_gpus_per_worker 0.125 \
 #                 --min_num_episodes_per_worker 20 --num_target_blocks 15 --num_simulations 100 \
 #                 --training_steps 25 --c_init 1.25 --value_support_min -50 --value_support_max 0 --value_support_delta 1
                 
