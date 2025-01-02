@@ -26,7 +26,8 @@ def set_seed(seed):
 
 if __name__ == "__main__":
     parser = ArgumentParser("MCTS Place, GO")
-    parser.add_argument("--env", type=str, default="Place-v0")
+    parser.add_argument("--env", type=str, default="Swap-v0")
+    # parser.add_argument("--env", type=str, default="Classic-v0")
     parser.add_argument("--results_dir", default="results")
     parser.add_argument("--opr", default="train", type=str)
     parser.add_argument("--num_rollout_workers", default=4, type=int)

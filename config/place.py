@@ -92,4 +92,4 @@ class Config(BaseConfig):
     def env_creator(self, simulator=False, log_dir=None, num_target_blocks=30):
         if log_dir is None:
             log_dir = self.log_dir
-        return gym.make("Place-v0", log_dir=log_dir, simulator=simulator, num_target_blocks=num_target_blocks)
+        return gym.make("Swap-v0", log_dir=log_dir, simulator=simulator, num_target_blocks=num_target_blocks)
