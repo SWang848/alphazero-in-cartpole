@@ -24,9 +24,10 @@ class Placement(gym.Env):
     orange = (255, 229, 153)
 
     def __init__(
-        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30, diff_reward=False
+        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30, diff_reward=False, mask_location=False
     ):
         # metadata = {"render.modes": ["human"]}
+        self.prev_actions = []
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
@@ -108,6 +109,7 @@ class Placement(gym.Env):
         )
 
         self.diff_reward = diff_reward
+        self.mask_location = mask_location
         # render
         self.grid_width_size = self.width
         self.grid_height_size = self.height
@@ -175,6 +177,9 @@ class Placement(gym.Env):
         if done:
             init_observation, _ = self.reset()
             next_block = init_observation["next_block"]
+        
+        if self.mask_location:
+            self.prev_actions.append(self.action)
 
         return (
             {
@@ -188,6 +193,7 @@ class Placement(gym.Env):
         )
 
     def reset(self):
+        self.prev_actions = []
         self.num_step_episode = 0
         self.cumulative_reward = 0
         self.place_coords = self.init_place_coords.copy()
@@ -242,6 +248,9 @@ class Placement(gym.Env):
             ):
                 valid_positions.remove(position[0] * self.width + position[1])
 
+            if (position[0] * self.width + position[1]) in self.prev_actions:
+                valid_positions.remove(position[0] * self.width + position[1])
+
         action_mask = np.zeros((self.height * self.width), dtype=int)
         action_mask[valid_positions] = 1
 
@@ -291,8 +300,8 @@ class Placement(gym.Env):
             max_hpwl = 4900
         elif self.num_blocks == 45:
             # 45 blocks hpwl range
-            best_hpwl = 0
-            max_hpwl = 0
+            best_hpwl = 2600
+            max_hpwl = 5600
         elif self.num_blocks == 56:
             # 56 blocks hpwl range
             best_hpwl = 2600

@@ -12,7 +12,7 @@ for file in "$directory/$prefix"*; do
   # Check if the file exists and is a directory
   if [ -d "$file" ]; then
     # Run wandb sync command
-    wandb sync "$file"
+    wandb sync --include-offline "$file"
   else
     echo "No directories found with the prefix '$prefix'"
   fi

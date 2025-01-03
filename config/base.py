@@ -35,7 +35,9 @@ class BaseConfig:
             min_num_episodes_per_worker: int,  # Number of episodes each worker has to collect before model weights are updated
             use_dirichlet: bool,  # Whether to use Dirichlet noise during rollouts
             test_use_dirichlet: bool,  # Whether to use Dirichlet noise during testing
-            value_support: DiscreteSupport,  # See muZero paper
+            value_support_min: int,  # See muZero paper
+            value_support_max: int,  # See muZero paper
+            value_support_delta: float,  # See muZero paper
             value_transform: bool,  # See muZero paper
     ):
         self.training_steps = training_steps
@@ -69,7 +71,7 @@ class BaseConfig:
 
         self.test_use_dirichlet = test_use_dirichlet
 
-        self.value_support = value_support
+        self.value_support = DiscreteSupport(value_support_min, value_support_max, value_support_delta)
         self.value_transform = value_transform
 
         self._action_shape = None
