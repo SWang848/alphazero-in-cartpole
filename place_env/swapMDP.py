@@ -25,10 +25,10 @@ class SwapPlacement(Placement):
     orange = (255, 229, 153)
 
     def __init__(
-        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30
+        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30, mask_in_obs=False
     ):
         # metadata = {"render.modes": ["human"]}
-
+        self.mask_in_obs = mask_in_obs
         self.prev_actions = []
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
@@ -79,7 +79,8 @@ class SwapPlacement(Placement):
         self.board_image = np.zeros((2, self.width, self.height), dtype=int)
         self.place_infos = np.full((len(self.blocks_list), 7), -1)
         self.action_space = spaces.Discrete(self.width * self.height)
-        self.observation_space = spaces.Dict(
+        if self.mask_in_obs:
+            self.observation_space = spaces.Dict(
             {
                 "board_image": spaces.Box(
                     low=0,
@@ -95,8 +96,28 @@ class SwapPlacement(Placement):
                     low=-1, high=np.inf, shape=(len(self.blocks_list), 7), dtype=float
                 ),
                 "next_block": spaces.Discrete(self.num_blocks),
+                "action_mask": spaces.Box(low=0, high=1, shape=(self.action_space.n,), dtype=np.int8)
             }
         )
+        else: 
+            self.observation_space = spaces.Dict(
+                {
+                    "board_image": spaces.Box(
+                        low=0,
+                        high=np.inf,
+                        shape=(
+                            6,
+                            self.height,
+                            self.width,
+                        ),  # capacity, current block, swap_place, sink, source, connections
+                        dtype=float,
+                    ),
+                    "place_infos": spaces.Box(
+                        low=-1, high=np.inf, shape=(len(self.blocks_list), 7), dtype=float
+                    ),
+                    "next_block": spaces.Discrete(self.num_blocks),
+                }
+            )
 
         self.episode_step_limit = truncate_step
         self.num_step = 0
@@ -162,27 +183,47 @@ class SwapPlacement(Placement):
         action_mask = self.get_mask()
         next_block = self.place_order[self.num_step_episode % self.num_blocks]
 
-        infos = {
+        if self.mask_in_obs:
+            infos = {
             "placed_block": block_index,
             "hpwl": hpwl,
             "episode_steps": self.num_step_episode,
             "cumulative_reward": self.cumulative_reward,
             "wirelength": wirelength,
             "num_episode": self.num_episode,
-            "action_mask": action_mask,
-        }
-
+            }
+            return (
+                {
+                    "board_image": board_image,
+                    "place_infos": place_infos,
+                    "next_block": next_block,
+                    "action_mask": action_mask,
+                },
+                reward,
+                done,
+                infos,
+            )
+        else:
+            infos = {
+                "placed_block": block_index,
+                "hpwl": hpwl,
+                "episode_steps": self.num_step_episode,
+                "cumulative_reward": self.cumulative_reward,
+                "wirelength": wirelength,
+                "num_episode": self.num_episode,
+                "action_mask": action_mask,
+            }
             
-        return (
-            {
-                "board_image": board_image,
-                "place_infos": place_infos,
-                "next_block": next_block,
-            },
-            reward,
-            done,
-            infos,
-        )
+            return (
+                {
+                    "board_image": board_image,
+                    "place_infos": place_infos,
+                    "next_block": next_block,
+                },
+                reward,
+                done,
+                infos,
+            )
 
     def reset(self):
         self.num_step_episode = 0
@@ -201,21 +242,29 @@ class SwapPlacement(Placement):
         else:
             (wire_term, critical_path_delay, wirelength) = (0, 0, 0)
 
-        infos = {
-            "placed_block": None,
-            "hpwl": hpwl,
-            "episode_steps": self.num_step_episode,
-            "cumulative_reward": self.cumulative_reward,
-            "wirelength": wirelength,
-            "num_episode": self.num_episode,
-            "action_mask": self.get_mask(),
-        }
+        if self.mask_in_obs:
+            return {
+                "board_image": self.board_image,
+                "place_infos": self.place_infos,
+                "next_block": self.place_order[0],
+                "action_mask": self.get_mask(),
+            }
+        else:
+            infos = {
+                "placed_block": None,
+                "hpwl": hpwl,
+                "episode_steps": self.num_step_episode,
+                "cumulative_reward": self.cumulative_reward,
+                "wirelength": wirelength,
+                "num_episode": self.num_episode,
+                "action_mask": self.get_mask(),
+            }
 
-        return {
-            "board_image": self.board_image,
-            "place_infos": self.place_infos,
-            "next_block": self.place_order[0],
-        }, infos
+            return {
+                "board_image": self.board_image,
+                "place_infos": self.place_infos,
+                "next_block": self.place_order[0],
+            }, infos
 
     def get_mask(self, block_index=None):
         if block_index is None:
