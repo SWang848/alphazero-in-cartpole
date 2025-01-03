@@ -239,10 +239,11 @@ class TransitionBuffer:
     
     @staticmethod
     def compute_wandb_buffers(buffers: List["TransitionBuffer"]):
-        stats = {"end_of_episode_rewards": [], "end_of_episode_wirelength": []}   
+        stats = {"end_of_episode_rewards": [], "end_of_episode_wirelength": [], "end_of_episode_hpwl": []}   
         for buffer in buffers:
             stats["end_of_episode_rewards"].append(buffer.rewards[-1])
             stats["end_of_episode_wirelength"].append(buffer.infos[-1]["wirelength"])
+            stats["end_of_episode_hpwl"].append(buffer.infos[-1]["hpwl"])
         return stats
     
     @staticmethod
