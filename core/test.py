@@ -131,9 +131,9 @@ def test_multiple(args, config, log_dir, saved_weight_path):
         plot_dict["opt"]["action"] = [52, 30, 29, 40, 19]
         plot_dict["opt"]["hpwl"] = [3362.0650799999994, 3061.659479999999, 3055.0695399999986, 3006.2871799999984, 2795.2629399999996]
 
-    #if scale:
-    #    for i in range(len(plot_dict["opt"]["reward"])):
-    #        plot_dict["opt"]["reward"][i] = scale_hpwl(plot_dict["opt"]["reward"][i])
+    #if scale opt:
+    for i in range(len(plot_dict["opt"]["reward"])):
+        plot_dict["opt"]["reward"][i] = scale_hpwl(plot_dict["opt"]["reward"][i])
              
 
     for path, filename in model_path_list:
@@ -149,12 +149,12 @@ def test_multiple(args, config, log_dir, saved_weight_path):
 same as get_hpwl from placement.py
 
 """
-def scale_hpwl(hpwl):
+def scale_hpwl(r):
     # observersed hpwl diff range: [-300, 300]
     # target reward range: [-1, 0]
     # (r - r_min) / (r_max - r_min) - 1
-    reward = (hpwl - (-300)) / (300 - (-300)) - 1
-    return reward
+    
+    return r/300
 
 def plot_hpwl(plot_dict, args):
     plt.figure(figsize=(10, 6))
