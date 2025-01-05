@@ -12,7 +12,7 @@ from core.pretrain import create_filled_demonstration_buffer
 from core.workers import RolloutWorker, TestWorker, DemonstrationWorker
 from core.replay_buffer import ReplayBuffer, TransitionBuffer
 from core.storage import SharedStorage
-
+from core.test import train_evaluation
 
 def train(args, config: BaseConfig, model, summary_writer, log_dir):
     print("Starting training...")
@@ -54,7 +54,14 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
     ]
 
     workers = [rollout_worker.run.remote() for rollout_worker in rollout_workers]
-
+    # evaluation
+    test_workers = [
+        TestWorker.options(
+            num_cpus=args.num_cpus_per_worker, num_gpus=args.num_gpus_per_worker
+        ).remote(config, args.device_workers, args.amp)
+        for _ in range(1)
+    ]
+    # ---- evaluation
     storage.set_start_signal.remote()
 
     for train_step in range(config.training_steps):
@@ -108,11 +115,18 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
                 )
             if config.clear_buffer_after_broadcast:
                 replay_buffer.clear.remote()
+            
 
         rollout_worker_logs = ray.get(storage.pop_rollout_worker_logs.remote())
         wandb_logs = ray.get(storage.pop_wandb_logs.remote())
 
         if args.wandb and not args.debug:
+            if train_step % config.evaluation_interval == 0:
+                # run inference
+                test_stats = train_evaluation(args, config, model, test_workers, log_dir)
+                print("test stats reward ", test_stats)
+                wandb.log({f'test/trajectory_reward_step': test_stats["reward"]})
+
             print(wandb_logs)
             wandb.log(
                 {
