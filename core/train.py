@@ -122,10 +122,14 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
                     "rollout/avg_end_of_episode_wirelength": mean(
                         wandb_logs["end_of_episode_wirelength"]
                     ),
+                    "rollout/avg_end_of_episode_hpwl": mean(
+                        wandb_logs["end_of_episode_hpwl"]
+                    ),
                     "train/total_loss": mean(total_losses),
                     "train/policy_loss": mean(policy_losses),
                     "train/value_loss": mean(value_losses),
                     "train/replay_buffer_size": replay_buffer_size,
+
                 }
             )
 
