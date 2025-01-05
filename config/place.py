@@ -43,6 +43,7 @@ class Config(BaseConfig):
         value_support_delta: int = 1,
         value_transform: bool = True,
         log_dir: str = None,
+        evaluation_interval: int = 5
     ):
         super().__init__(
             training_steps,
@@ -80,6 +81,7 @@ class Config(BaseConfig):
         # rewrote by user agruments in the main.py 
         self.log_dir = log_dir
         self.num_target_blocks = num_target_blocks
+        self.evaluation_interval = evaluation_interval
 
     def init_model(self, device, amp):
         obs_shape = (self.obs_shape[0] * self.frame_stack,) + self.obs_shape[1:]
