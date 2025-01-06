@@ -1,15 +1,8 @@
 
-import os
-import shutil
-from place_env.placement import Placement
-from ppo import PPO
-import gym
 import torch
 import numpy as np
-from datetime import datetime
-import random
 from torch.distributions import Categorical
-from model import Actor, Critic
+
 
 class CategoricalMasked(Categorical):
     def __init__(self, probs=None, logits=None, masks=None, device="cpu"):

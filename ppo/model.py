@@ -10,32 +10,6 @@ def init(module, weight_init, bias_init, gain=1):
             bias_init(param)
     return module
 
-class Flatten(nn.Module):
-    def forward(self, x):
-        return x.view(x.size(0), -1)
-
-
-class CNN(nn.Module):
-    def __init__(self, num_inputs, hidden_size):
-        super(CNN, self).__init__()
-
-        # Define the CNN structure
-        self.main = nn.Sequential(
-            nn.Conv2d(num_inputs, 32, 3, stride=1),  # Output size: [32, 9, 9]
-            nn.ReLU(),
-            nn.Conv2d(32, 64, 3, stride=1),  # Output size: [64, 7, 7]
-            nn.ReLU(),
-            nn.Conv2d(64, 32, 3, stride=1),  # Output size: [32, 5, 5]
-            nn.ReLU(),
-            Flatten(),  # Flatten the output for the Linear layer
-            nn.Linear(32 * 5 * 5, hidden_size),  # Adjusted to match the flattened size
-            nn.ReLU(),
-        )
-
-    def forward(self, x):
-        return self.main(x)
-
-
 class ResidualBlock(nn.Module):
     
     def __init__(self, in_channels, out_channels, stride=1):
@@ -99,7 +73,8 @@ class Actor(nn.Module):
         device,
         hidden_size=512,
     ):
-        super(Actor, self).__init__()
+        super().__init__()
+        self.batch_norm = nn.BatchNorm2d(obs_shape[0])
         self.resnet = ResNet(obs_shape, num_blocks=10, out_channels=64, hidden_size=hidden_size)
 
         # Linear layer for value estimation
@@ -107,11 +82,16 @@ class Actor(nn.Module):
             m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0)
         )
         self.actor = nn.Sequential(
-            init_(nn.Linear(hidden_size, hidden_size)),
+            # init_(nn.Linear(hidden_size, hidden_size)),
+            nn.Linear(hidden_size, hidden_size),
+            nn.BatchNorm1d(hidden_size),
             nn.ReLU(),
-            init_(nn.Linear(hidden_size, hidden_size)),
+            nn.Linear(hidden_size, hidden_size),
+            # init_(nn.Linear(hidden_size, hidden_size)),
+            nn.BatchNorm1d(hidden_size),
             nn.ReLU(),
-            init_(nn.Linear(hidden_size, num_act))
+            nn.Linear(hidden_size, num_act)
+            # init_(nn.Linear(hidden_size, num_act))
         )
 
         self._hidden_size = hidden_size
@@ -123,6 +103,7 @@ class Actor(nn.Module):
         self,
         obs: torch.tensor,
     ) -> torch.tensor:
+        obs = self.batch_norm(obs)
         obs_out = self.resnet(obs)
         action_out = self.actor(obs_out)
 
@@ -136,18 +117,24 @@ class Critic(nn.Module):
         device,
         hidden_size=512,
     ):
-        super(Critic, self).__init__()
+        super().__init__()
+        self.batch_norm = nn.BatchNorm2d(obs_shape[0])
         self.resnet = ResNet(obs_shape, num_blocks=10, out_channels=64, hidden_size=hidden_size)
         # Linear layer for value estimation
         init_ = lambda m: init(
             m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0)
         )
         self.critic = nn.Sequential(
-            init_(nn.Linear(hidden_size, hidden_size)),
+            nn.Linear(hidden_size, hidden_size),
+            # init_(nn.Linear(hidden_size, hidden_size)),
+            nn.BatchNorm1d(hidden_size),
             nn.ReLU(),
-            init_(nn.Linear(hidden_size, hidden_size)),
+            nn.Linear(hidden_size, hidden_size),
+            # init_(nn.Linear(hidden_size, hidden_size)),
+            nn.BatchNorm1d(hidden_size),
             nn.ReLU(),
-            init_(nn.Linear(hidden_size, 1))
+            nn.Linear(hidden_size, 1)
+            # init_(nn.Linear(hidden_size, 1))
         )
 
         self.train()
@@ -157,6 +144,7 @@ class Critic(nn.Module):
         self,
         obs: torch.tensor,
     ) -> torch.tensor:
+        obs = self.batch_norm(obs)
         obs_out = self.resnet(obs)
         x_out = self.critic(obs_out)
         

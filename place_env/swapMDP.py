@@ -62,18 +62,6 @@ class SwapPlacement(Placement):
         self.height = preprocess.grid_height
         self.place_order = preprocess.place_order
         self.log_dir = log_dir
-        self.simulator = simulator
-        if self.simulator:
-            # gurantee the simulator path is valid
-            self.log_file_path = os.path.join(
-                self.log_dir, str(random.randint(0, 9999))
-            )
-            if not os.path.exists(self.log_file_path):
-                os.makedirs(self.log_file_path)
-            place_path = os.path.join(data_dir, "tseng.place")
-            net_path = os.path.join(data_dir, "tseng.net")
-            shutil.copy2(place_path, os.path.join(self.log_file_path, "tseng.place"))
-            shutil.copy2(net_path, os.path.join(self.log_file_path, "tseng.net"))
 
         # state and action space defination
         self.board_image = np.zeros((2, self.width, self.height), dtype=int)

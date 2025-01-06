@@ -1,6 +1,5 @@
 import gym
 from gym.vector.async_vector_env import AsyncVectorEnv
-import typing
 
 from argparse import ArgumentParser
 import os
@@ -11,9 +10,10 @@ import numpy as np
 import random
 from datetime import datetime
 
-from ppo import PPO
-from rollout import RolloutStorage
-from evaluation import evaluate
+from ppo.ppo_agent import PPO
+import place_env
+from ppo.rollout import RolloutStorage
+from ppo.evaluation import evaluate
 
 def make_env(env_name, log_dir, simulator=False, num_target_blocks=15, mask_in_obs=True):
     def thunk():
@@ -37,12 +37,13 @@ def set_seed(seed):
         
 if __name__ == "__main__":
     parser = ArgumentParser("PPO Place, GO")
-    parser.add_argument("--env", type=str, default="Swap-v0", help="Name of environment.")
+    parser.add_argument("--env", type=str, default="Classic-v0", help="Name of environment.")
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--wandb", action="store_true")
     parser.add_argument("--cc", action="store_true")
+    parser.add_argument("--group_name", default="default", type=str)
     parser.add_argument("--results_dir", default="results")
     parser.add_argument("--rollout_size", default=64, type=int, help="Number of steps per rollout.")
     parser.add_argument("--total_timesteps", default=128000, type=int, help="Total timesteps for training.")
@@ -53,9 +54,9 @@ if __name__ == "__main__":
     parser.add_argument("--mini_batch_size", default=32, type=int, help="Mini-batch size.")
     parser.add_argument("--lr_a", default=1e-4, type=float, help="Learning rate for the actor.")
     parser.add_argument("--lr_c", default=1e-4, type=float, help="Learning rate for the critic.")
-    parser.add_argument("--gamma", default=0.99, type=float, help="Discount factor for future rewards.")
+    parser.add_argument("--gamma", default=1.0, type=float, help="Discount factor for future rewards.")
     parser.add_argument("--lamda", default=0.95, type=float, help="Lambda for GAE (Generalized Advantage Estimation).")
-    parser.add_argument("--k_epochs", default=1, type=int, help="Number of epochs for training.")
+    parser.add_argument("--k_epochs", default=10, type=int, help="Number of epochs for training.")
     parser.add_argument("--entropy_coef", default=5e-3, type=float, help="Entropy coefficient for exploration.")
     parser.add_argument("--epsilon", default=0.2, type=float, help="Clip range for policy updates.")
 
@@ -74,8 +75,12 @@ if __name__ == "__main__":
             log_dir = os.path.join(args.results_dir, sub_dir)
         else:
             log_dir = os.path.join(os.getcwd(), args.results_dir, sub_dir)
+    os.makedirs(log_dir, exist_ok=True)
     args.log_dir = log_dir
     
+    for arg, arg_val in vars(args).items():
+        print(f'setting "{arg}" config entry with {arg_val}')
+            
     if args.wandb and not args.debug:
         run = wandb.init(
             project="RL for chips",
@@ -86,7 +91,7 @@ if __name__ == "__main__":
     envs = AsyncVectorEnv(
         [
             make_env(
-                env_name="Place-v0",
+                env_name=args.env,
                 log_dir=log_dir,
                 simulator=False,
                 num_target_blocks=args.num_target_blocks,
@@ -97,14 +102,14 @@ if __name__ == "__main__":
     )
     
     agent = PPO(
-        action_space=envs.single_action_space.n,
-        observation_space=envs.single_observation_space['board_image'].shape,
+        num_actions=envs.single_action_space.n,
+        observation_shape=envs.single_observation_space['board_image'].shape,
         args=args,
     )
     rollouts = RolloutStorage(
         args,
-        observation_space=envs.single_observation_space,
-        action_space=envs.single_action_space,
+        observation_shape=envs.single_observation_space['board_image'].shape,
+        num_actions=envs.single_action_space.n,
         device=args.device,
     )
     
@@ -122,8 +127,6 @@ if __name__ == "__main__":
             action, action_log_prob = agent.choose_action(
                 # normalize(board_image, "board_image"),
                 board_image,
-                place_infos,
-                block_index,
                 action_mask,
             )
 
@@ -202,7 +205,7 @@ if __name__ == "__main__":
                 action_loss,
             )
         )
-        if not args.debug:
+        if not args.debug and args.wandb:
             wandb.log(
                 {
                     "value_loss": value_loss,
@@ -242,7 +245,7 @@ if __name__ == "__main__":
             )
 
             cumulative_reward_list, steps_episode, end_hpwl, end_wirelength = evaluate(
-                agent.actor, env, args.device 
+                agent.actor, env, args.device
             )
 
             cumulative_reward_mean = np.mean(cumulative_reward_list)

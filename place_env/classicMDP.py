@@ -160,12 +160,8 @@ class ClassicPlacement(Placement):
         self.board_image = self.init_board_image.copy()
         self.place_infos = self.init_place_infos.copy()
 
-        if self.simulator:
-            (wire_term, critical_path_delay, wirelength) = self.call_simulator(
-                self.place_coords, self.width
-            )
-        else:
-            (wire_term, critical_path_delay, wirelength) = (0, 0, 0)
+
+        (wire_term, critical_path_delay, wirelength) = (0, 0, 0)
 
         if self.mask_in_obs:
             return {
@@ -341,11 +337,11 @@ class ClassicPlacement(Placement):
             coords_y = []
             if first_block in net:
                 for node in net:
-                    if np.all(self.place_coords[node] == -1):
+                    if np.all(place_coords[node] == -1):
                         pass
                     else:
-                        coords_x.append(self.place_coords[node][0])
-                        coords_y.append(self.place_coords[node][1])
+                        coords_x.append(place_coords[node][0])
+                        coords_y.append(place_coords[node][1])
 
                 if len(coords_x) == 0:
                     min_x = 0
@@ -367,17 +363,17 @@ class ClassicPlacement(Placement):
                     if i >= min_x and i <= max_x:
                         pass
                     elif i < min_x:
-                        board_image[1, i, :] = self.board_image[1, i, :] + q * (min_x - i)
+                        board_image[1, i, :] = board_image[1, i, :] + q * (min_x - i)
                     elif i > max_x:
-                        board_image[1, i, :] = self.board_image[1, i, :] + q * (i - max_x)
+                        board_image[1, i, :] = board_image[1, i, :] + q * (i - max_x)
 
                 for j in range(self.width):
                     if j >= min_y and j <= max_y:
                         pass
                     elif j < min_y:
-                        board_image[1, :, j] = self.board_image[1, :, j] + q * (min_y - j)
+                        board_image[1, :, j] = board_image[1, :, j] + q * (min_y - j)
                     elif j > max_y:
-                        board_image[1, :, j] = self.board_image[1, :, j] + q * (j - max_y)
+                        board_image[1, :, j] = board_image[1, :, j] + q * (j - max_y)
             else:
                 pass
 

@@ -2,7 +2,8 @@ import numpy as np
 import torch
 from torch.distributions import Categorical
 from torch.utils.data.sampler import BatchSampler, SubsetRandomSampler
-from model import Actor, Critic
+
+from ppo.model import Actor, Critic
 
 
 class CategoricalMasked(Categorical):
@@ -13,7 +14,7 @@ class CategoricalMasked(Categorical):
         if masks is None:
             super(CategoricalMasked, self).__init__(probs=probs, logits=logits)
         else:
-            logits = torch.where(self.masks, logits, torch.tensor(-float('inf')).to(self.device))
+            logits = torch.where(self.masks, logits, torch.tensor(-float('1e8')).to(self.device))
             super(CategoricalMasked, self).__init__(probs=probs, logits=logits)
 
     def entropy(self):
@@ -103,12 +104,12 @@ class PPO:
         with torch.no_grad():
             vs = self.critic(
                 rollouts.board_image.reshape(
-                    -1, *self.observation_space["board_image"].shape
+                    -1, *self.observation_shape
                 )
             ).reshape(-1, self.num_envs)
             vs_ = self.critic(
                 rollouts.board_image_.reshape(
-                    -1, *self.observation_space["board_image"].shape
+                    -1, *self.observation_shape
                 )
             ).reshape(-1, self.num_envs)
 
@@ -139,7 +140,7 @@ class PPO:
             ):
                 logits = self.actor(
                     rollouts.board_image.reshape(
-                        -1, *self.observation_space["board_image"].shape
+                        -1, *self.observation_shape
                     )[index]
                 )
 
@@ -149,14 +150,6 @@ class PPO:
                     masks=rollouts.action_mask.reshape(-1, self.num_actions)[index],
                     device=self.device,
                 )
-
-                # using unmasked policy to update
-                # dist_now = CategoricalMasked(
-                #     logits=logits,
-                #     masks=None,
-                #     device=self.device,
-                # )
-
                 dist_entropy = dist_now.entropy().view(-1, 1)
                 a_logprob_now = dist_now.log_prob(rollouts.actions.reshape(-1)[index])
 
@@ -184,14 +177,18 @@ class PPO:
                 )
 
                 self.optimizer_actor.zero_grad()
+                # with torch.autograd.set_detect_anomaly(True):
                 actor_loss.backward()
+                # for name, param in self.actor.named_parameters():
+                #     if param.grad is not None:
+                #         print(f"{name}: max grad {param.grad.max()}, min grad {param.grad.min()}")
                 torch.nn.utils.clip_grad_norm_(self.actor.parameters(), 0.5)
                 self.optimizer_actor.step()
 
                 # critic loss
                 v_s = self.critic(
                     rollouts.board_image.reshape(
-                        -1, *self.observation_space["board_image"].shape
+                        -1, *self.observation_shape
                     )[index]
                 )
 
@@ -203,7 +200,8 @@ class PPO:
                 critic_loss = 0.5 * torch.max(critic_loss, critic_loss_clipped).mean()
 
                 self.optimizer_critic.zero_grad()
-                critic_loss.backward()
+                with torch.autograd.set_detect_anomaly(True):
+                    critic_loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.critic.parameters(), 0.5)
                 self.optimizer_critic.step()
 
