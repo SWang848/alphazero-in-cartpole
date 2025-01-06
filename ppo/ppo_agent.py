@@ -133,6 +133,8 @@ class PPO:
             vs_ = vs_.reshape(-1)
 
         for _ in range(self.k_epochs):
+            self.actor.train()
+            self.critic.train()
             for index in BatchSampler(
                 SubsetRandomSampler(range(rollouts.rollout_size * self.num_envs)),
                 batch_size=self.mini_batch_size,

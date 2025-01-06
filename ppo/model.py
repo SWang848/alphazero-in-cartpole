@@ -46,8 +46,6 @@ class ResNet(nn.Module):
         self.conv2 = nn.Conv2d(out_channels, out_channels // 4, kernel_size=1)
         self.obs_out = nn.Linear(input_shape[1] * input_shape[2] * out_channels // 4, hidden_size)
 
-        self.train()
-
     def forward(self, x):
         x = self.conv1(x)
 
@@ -95,8 +93,6 @@ class Actor(nn.Module):
         )
 
         self._hidden_size = hidden_size
-
-        self.train()
         self.to(device)
 
     def forward(
@@ -136,8 +132,7 @@ class Critic(nn.Module):
             nn.Linear(hidden_size, 1)
             # init_(nn.Linear(hidden_size, 1))
         )
-
-        self.train()
+        
         self.to(device)
 
     def forward(

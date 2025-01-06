@@ -14,14 +14,6 @@ import numpy as np
 
 
 class ClassicPlacement(Placement):
-    metadata = {"render_modes": ["human", "rgb_array"]}
-    black = (0, 0, 0)
-    white = (255, 255, 255)
-    grey = (161, 161, 161)
-    blue = (126, 166, 254)
-    dark_blue = (126, 166, 204)
-    pink = (205, 162, 190)
-    orange = (255, 229, 153)
 
     def __init__(
         self, log_dir, simulator=False, render_mode=None, num_target_blocks=30, mask_in_obs=False

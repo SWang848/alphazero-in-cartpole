@@ -3,10 +3,9 @@ import re
 import shutil
 import gym
 import random
-from gym import spaces
 from copy import deepcopy
 
-from core.util import fill_place_file, trans_coordinate
+from core.util import fill_place_file
 from core.preprocess import Preprocess
 
 import numpy as np

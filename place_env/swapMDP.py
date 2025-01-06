@@ -15,53 +15,15 @@ import pygame
 
 
 class SwapPlacement(Placement):
-    metadata = {"render_modes": ["human", "rgb_array"]}
-    black = (0, 0, 0)
-    white = (255, 255, 255)
-    grey = (161, 161, 161)
-    blue = (126, 166, 254)
-    dark_blue = (126, 166, 204)
-    pink = (205, 162, 190)
-    orange = (255, 229, 153)
 
     def __init__(
         self, log_dir, simulator=False, render_mode=None, num_target_blocks=30, mask_in_obs=False
     ):
+        super().__init__(log_dir, simulator, render_mode, num_target_blocks)
         # metadata = {"render.modes": ["human"]}
         self.mask_in_obs = mask_in_obs
         self.prev_actions = []
-        assert render_mode is None or render_mode in self.metadata["render_modes"]
-        self.render_mode = render_mode
-
-        # In CC, the data path saved in the local disk is set in the environment variable.
-        if "data" in os.environ:
-            data_dir = os.environ["data"]
-        else:
-            data_dir = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"
-            )
-        preprocess = Preprocess(
-            num_target_blocks=num_target_blocks,
-            pack_xml_path=os.path.join(data_dir, "tseng.net"),
-            block_infos_file_path=os.path.join(data_dir, "block.infos"),
-            primitive_netlist_file_path=os.path.join(data_dir, "primitive.netlist"),
-            grid_constraint_path=os.path.join(data_dir, "grid.constraint"),
-            blocks_place_file_path=os.path.join(data_dir, "tseng.place"),
-        )
-        self.cheat_trajectory = self.cheat(file_path=os.path.join(data_dir, "optimized.place"))
-
-        truncate_step = preprocess.num_target_blocks
-
-        # chip information preprocess
-        self.num_blocks = preprocess.num_target_blocks
-        self.blocks_list = preprocess.blocks_list
-        self.grid_constraints_dict = preprocess.grid_constraints_dict
-        self.netlist_list = preprocess.netlist_list
-        self.capacity = preprocess.capacity
-        self.width = preprocess.grid_width
-        self.height = preprocess.grid_height
-        self.place_order = preprocess.place_order
-        self.log_dir = log_dir
+        self.cheat_trajectory = self.cheat(file_path=os.path.join(self.data_dir, "optimized.place"))
 
         # state and action space defination
         self.board_image = np.zeros((2, self.width, self.height), dtype=int)
@@ -107,7 +69,7 @@ class SwapPlacement(Placement):
                 }
             )
 
-        self.episode_step_limit = truncate_step
+        self.episode_step_limit = self.preprocess.num_target_blocks
         self.num_step = 0
         self.num_episode = 0
         self.num_step_episode = 0
@@ -115,7 +77,7 @@ class SwapPlacement(Placement):
         self.place_coords = np.full((len(self.blocks_list), 2), -1)
         self.init_board_image, self.init_place_infos, self.init_place_coords = (
             self._place_initial_blocks(
-                optimized_file=os.path.join(data_dir, "optimized.place")
+                optimized_file=os.path.join(self.data_dir, "optimized.place")
             )
         )
 
@@ -164,7 +126,7 @@ class SwapPlacement(Placement):
                 )
             else:
                 (wire_term, critical_path_delay, wirelength) = (0, 0, 0)
-
+        
         self.cumulative_reward += 0.99**self.num_step_episode * reward
         self.num_step += 1
         self.num_step_episode += 1
@@ -282,23 +244,6 @@ class SwapPlacement(Placement):
 
         return action_mask
 
-    def calculate_hpwl(self):
-        hpwl_total = 0
-        for i in self.netlist_list:
-            x_coords, y_coords = [], []
-            for j in i:
-                x_coords.append(self.place_coords[j][0])
-                y_coords.append(self.place_coords[j][1])
-            HPWL = max(x_coords) - min(x_coords) + max(y_coords) - min(y_coords)
-            if len(i) > 3:
-                q = 2.7933 + 0.02616 * (len(i) - 50)
-            else:
-                q = 1
-
-            HPWL = HPWL * q
-            hpwl_total += HPWL
-        return hpwl_total
-
     def cheat(self, file_path):
         optimized_action = list()
         with open(file_path, "r") as file:
@@ -309,58 +254,6 @@ class SwapPlacement(Placement):
                     optimized_action.append(coord[0] * 11 + coord[1])
         
         return optimized_action
-        
-    def hpwl_reward(self, hpwl):
-        
-        if self.num_blocks == 5:
-            # 5 blocks hpwl range
-            best_hpwl = 2733
-            max_hpwl = 3362
-        elif self.num_blocks == 15:
-            # 15 blocks hpwl range
-            best_hpwl = 2600
-            max_hpwl = 4300
-        elif self.num_blocks == 30:
-            # 30 blocks hpwl range
-            best_hpwl = 2600
-            max_hpwl = 4900
-        elif self.num_blocks == 45:
-            # 45 blocks hpwl range
-            best_hpwl = 0
-            max_hpwl = 0
-        elif self.num_blocks == 56:
-            # 56 blocks hpwl range
-            best_hpwl = 2600
-            max_hpwl = 5700
-
-        # scaled_reward = (best_hpwl_results - hpwl) / 1000
-        normalized_reward = (1 - ((hpwl - best_hpwl) / (max_hpwl - best_hpwl))) * 1
-        normalized_reward = max(0, min(1, normalized_reward))
-        normalized_reward = normalized_reward - 1
-
-        # normalized_reward = -hpwl / 1000
-
-        return normalized_reward
-
-    def call_simulator(self, place_coords, width):
-        fill_place_file(
-            place_coords,
-            width,
-            os.path.join(self.log_file_path, "tseng.place"),
-        )
-        (wire_term, critical_path_delay, wirelength) = self.episode_reward(
-            self.log_file_path
-        )
-        return wire_term, critical_path_delay, wirelength
-
-    # for mcts simulation
-    def set_state(self, state):
-        self = deepcopy(state)
-        return self
-
-    # for mcts simulation
-    def get_state(self):
-        return deepcopy(self)
 
     def _get_observation(self, block_index, coord_x, coord_y):
 
@@ -423,11 +316,11 @@ class SwapPlacement(Placement):
 
     def _place_initial_blocks(self, optimized_file, seed=0):
         """CXB experiment"""
-        place_coords = np.full((len(self.blocks_list), 2), -1)
-        board_image = np.zeros(
+        self.place_coords = np.full((len(self.blocks_list), 2), -1)
+        self.board_image = np.zeros(
             self.observation_space["board_image"].shape, dtype=float
         )
-        place_infos = np.full(
+        self.place_infos = np.full(
             self.observation_space["place_infos"].shape, -1, dtype=int
         )
         # place the initial blocks
@@ -445,8 +338,8 @@ class SwapPlacement(Placement):
                     x, y = coords[0], coords[1]
                     block_index = int(line_split[-1][1:])
 
-                    place_coords[block_index] = [x, y]
-                    board_image[0, x, y] += 1
+                    self.place_coords[block_index] = [x, y]
+                    self.board_image[0, x, y] += 1
                     num_sink = self.blocks_list.loc[
                         self.blocks_list["index"] == block_index
                     ]["sink"].values[0]
@@ -456,14 +349,14 @@ class SwapPlacement(Placement):
                     num_connections = self.blocks_list.loc[
                         self.blocks_list["index"] == block_index
                     ]["connections"].values[0]
-                    board_image[3, x, y] = num_sink
-                    board_image[4, x, y] = num_source
-                    board_image[5, x, y] = num_connections
+                    self.board_image[3, x, y] = num_sink
+                    self.board_image[4, x, y] = num_source
+                    self.board_image[5, x, y] = num_connections
                     type = self.blocks_list.loc[
                         self.blocks_list["index"] == block_index
                     ]["type"].values[0]
 
-                    place_infos[block_index] = [
+                    self.place_infos[block_index] = [
                         block_index,
                         x,
                         y,
@@ -485,10 +378,10 @@ class SwapPlacement(Placement):
             random_index = np.random.choice(np.where(valid_position == 1)[0])
             x, y = random_index // self.width, random_index % self.width
 
-            place_coords[block_index] = [x, y]
-            board_image[0, x, y] += 1
+            self.place_coords[block_index] = [x, y]
+            self.board_image[0, x, y] += 1
             if block_index == self.place_order[0]:
-                board_image[1, x, y] = 1
+                self.board_image[1, x, y] = 1
 
             num_sink = self.blocks_list.loc[self.blocks_list["index"] == block_index][
                 "sink"
@@ -499,14 +392,14 @@ class SwapPlacement(Placement):
             num_connections = self.blocks_list.loc[
                 self.blocks_list["index"] == block_index
             ]["connections"].values[0]
-            board_image[3, x, y] = num_sink
-            board_image[4, x, y] = num_source
-            board_image[5, x, y] = num_connections
+            self.board_image[3, x, y] = num_sink
+            self.board_image[4, x, y] = num_source
+            self.board_image[5, x, y] = num_connections
             type = self.blocks_list.loc[self.blocks_list["index"] == block_index][
                 "type"
             ].values[0]
 
-            place_infos[block_index] = [
+            self.place_infos[block_index] = [
                 block_index,
                 x,
                 y,
@@ -517,11 +410,12 @@ class SwapPlacement(Placement):
             ]
 
             valid_position[random_index] = 0
-        board_image[2, swappable_positions[0], swappable_positions[1]] = 1
+        self.board_image[2, swappable_positions[0], swappable_positions[1]] = 1
+        # print(self.calculate_hpwl())
         # print(self.calculate_hpwl())
 
         return (
-            board_image,
-            place_infos,
-            place_coords,
+            self.board_image,
+            self.place_infos,
+            self.place_coords,
         )

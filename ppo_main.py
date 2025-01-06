@@ -37,7 +37,7 @@ def set_seed(seed):
         
 if __name__ == "__main__":
     parser = ArgumentParser("PPO Place, GO")
-    parser.add_argument("--env", type=str, default="Classic-v0", help="Name of environment.")
+    parser.add_argument("--env", type=str, default="Swap-v0", help="Name of environment.")
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--seed", type=int, default=0)
@@ -263,8 +263,8 @@ if __name__ == "__main__":
                 )
             )
 
-            if not args.debug:
-                run.log(
+            if not args.debug and args.wandb:
+                wandb.log(
                     {
                         "evaluation_cumulative_reward_mean": cumulative_reward_mean,
                         "evaluation_last_hpwl_mean": end_hpwl_mean,

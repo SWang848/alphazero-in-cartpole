@@ -25,6 +25,7 @@ class CategoricalMasked(Categorical):
 def choose_action(actor, board_image, action_mask, device):
     with torch.no_grad():
         board_image = torch.tensor(board_image, dtype=torch.float32).to(device)
+        action_mask = torch.tensor(action_mask, dtype=torch.bool).to(device)
         logits = actor(board_image)
 
         dist = CategoricalMasked(
@@ -64,23 +65,22 @@ def calculate_critic_loss(reward_list, done_list, value_list):
 
 def evaluate(actor, env, device, critic=None):
     done = False
-    observation_ = env.reset()
+    actor.eval()
+
     cumulative_reward_list = []
     episode_steps = []
     end_hpwl = []
     end_wirelength = []
-
     reward_list = []
     done_list = []
     value_list = []
     for j in range(10):
         i = 0
         cumulative_reward = 0
+        observation_ = env.reset()
         while not done:
-            board_image, place_infos, block_index, action_mask = (
+            board_image, action_mask = (
                 observation_["board_image"],
-                observation_["place_infos"],
-                observation_["next_block"],
                 observation_["action_mask"],
             )
             action = choose_action(
