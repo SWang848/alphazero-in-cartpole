@@ -27,7 +27,12 @@ class MCTSWorker:
         self.num_envs = num_envs
         self.use_dirichlet = use_dirichlet
 
-        self.envs = [config.env_creator(simulator=simulator, num_target_blocks=config.num_target_blocks) for _ in range(self.num_envs)]
+        self.envs = [
+            config.env_creator(
+                simulator=simulator, num_target_blocks=config.num_target_blocks
+            )
+            for _ in range(self.num_envs)
+        ]
         self.env_observation_space = self.envs[0].observation_space["board_image"]
         self.env_action_space = self.envs[0].action_space
 
@@ -101,12 +106,14 @@ class MCTSWorker:
                 # action = np.random.choice(range(self.env_action_space.n), p=mcts_policy)  # We could also sample instead of maxing
                 actions.append(action)
 
-                obs, reward, done, info = self.envs[env_index].step(
+                obs, reward, done, truncated, info = self.envs[env_index].step(
                     action
                 )  # Apply action
-                
+
                 if self.config.root_value_targets:
-                    value_target = reward + self.config.gamma*root_values[env_index]*done
+                    value_target = (
+                        reward + self.config.gamma * root_values[env_index] * done
+                    )
                 else:
                     value_target = root_values[env_index]
 
@@ -143,7 +150,8 @@ class MCTSWorker:
                         not self.config.root_value_targets
                     ):  # Overwrite root values calculated during MCTS search with actual trajectory state returns
                         transition_buffers[env_index].augment_value_targets(
-                            max if self.config.max_reward_return else sum, gamma=self.config.gamma
+                            max if self.config.max_reward_return else sum,
+                            gamma=self.config.gamma,
                         )
 
                     # Priority by "goodness"
@@ -243,7 +251,9 @@ class TestWorker(MCTSWorker):
 
         # Compute and store stats
         self.stats = TransitionBuffer.compute_stats_buffers(transition_buffers)
-        self.evaluation_stats = TransitionBuffer.compute_evaluation_buffers(transition_buffers)
+        self.evaluation_stats = TransitionBuffer.compute_evaluation_buffers(
+            transition_buffers
+        )
 
     def get_stats(self):
         return self.stats, self.evaluation_stats

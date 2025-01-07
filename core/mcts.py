@@ -299,7 +299,7 @@ class MCTS:
                 to_node = trajectory[-1]
 
                 self.env = self.env.set_state(from_node.env_state)
-                obs, reward, done, info = self.env.step(to_node.action)
+                obs, reward, done, truncated, info = self.env.step(to_node.action)
 
                 windows[env_index].add(
                     obs["board_image"],
