@@ -27,9 +27,9 @@ source /home/shang8/scratch/MCTS_env/bin/activate
 wandb offline
 
 # c15b classic MDP; ppo
-python3 -u ppo_main.py --cc --wandb --group_name c15b_classic_PPO --env Classic-v0 --seed 0 \
-        --num_target_blocks 15 --num_envs 8 --lr_a $2 --lr_c $3 --entropy_coef $1 \
-        --total_timesteps 256000 --rollout_size 64 --mini_batch_size 32
+# python3 -u ppo_main.py --cc --wandb --group_name c15b_classic_PPO --env Classic-v0 --seed 0 \
+#         --num_target_blocks 15 --num_envs 8 --lr_a $2 --lr_c $3 --entropy_coef $1 \
+#         --total_timesteps 256000 --rollout_size 64 --mini_batch_size 32
 
 # c15b swap MDP; ppo
 python3 -u ppo_main.py --cc --wandb --group_name c15b_swap_PPO --env Swap-v0 --seed 0 \
