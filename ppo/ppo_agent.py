@@ -69,7 +69,7 @@ class PPO:
         action_mask: np.ndarray,
     ) -> (int, float): # type: ignore
         board_image = torch.tensor(board_image, dtype=torch.float32).to(self.device)
-        action_mask = torch.tensor(action_mask, dtype=torch.bool).to(self.device)
+        action_mask = torch.tensor(np.stack(action_mask, axis=0), dtype=torch.bool).to(self.device)
 
         with torch.no_grad():
             logits = self.actor(board_image)

@@ -41,7 +41,7 @@ class RolloutStorage:
         )
         self.rewards[self.count] = torch.tensor(rewards).to(self.device)
         self.done[self.count] = torch.tensor(done, dtype=torch.bool).to(self.device)
-        self.action_mask[self.count] = torch.tensor(action_mask, dtype=torch.bool).to(
+        self.action_mask[self.count] = torch.tensor(np.stack(action_mask, axis=0), dtype=torch.bool).to(
             self.device
         )
         self.count = (self.count + 1) % self.rollout_size

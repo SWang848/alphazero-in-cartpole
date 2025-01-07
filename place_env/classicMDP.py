@@ -16,16 +16,14 @@ import numpy as np
 class ClassicPlacement(Placement):
 
     def __init__(
-        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30, mask_in_obs=False
+        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30
     ):
         super().__init__(log_dir, simulator, render_mode, num_target_blocks)
-        self.mask_in_obs = mask_in_obs
         # state and action space defination
         self.board_image = np.zeros((6, self.width, self.height), dtype=int)
         self.place_infos = np.full((len(self.blocks_list), 7), -1)
         self.action_space = spaces.Discrete(self.width * self.height)
-        if self.mask_in_obs:
-            self.observation_space = spaces.Dict(
+        self.observation_space = spaces.Dict(
             {
                 "board_image": spaces.Box(
                     low=0,
@@ -41,28 +39,8 @@ class ClassicPlacement(Placement):
                     low=-1, high=np.inf, shape=(len(self.blocks_list), 7), dtype=float
                 ),
                 "next_block": spaces.Discrete(self.num_blocks),
-                "action_mask": spaces.Box(low=0, high=1, shape=(self.action_space.n,), dtype=np.int8)
             }
         )
-        else:
-            self.observation_space = spaces.Dict(
-                {
-                    "board_image": spaces.Box(
-                        low=0,
-                        high=np.inf,
-                        shape=(
-                            6,
-                            self.height,
-                            self.width,
-                        ),  # capacity, wirelength, availiable_grids, sink, source, connections
-                        dtype=float,
-                    ),
-                    "place_infos": spaces.Box(
-                        low=-1, high=np.inf, shape=(len(self.blocks_list), 7), dtype=float
-                    ),
-                    "next_block": spaces.Discrete(self.num_blocks),
-                }
-            )
         
 
         self.episode_step_limit = self.preprocess.num_target_blocks
@@ -84,6 +62,7 @@ class ClassicPlacement(Placement):
         hpwl = 0
         done = False
         wirelength = 0
+        truncated = False
         
         if (self.num_step_episode == self.episode_step_limit - 1):
             done = True
@@ -103,47 +82,28 @@ class ClassicPlacement(Placement):
         action_mask = self.get_mask()
         next_block = self.place_order[self.num_step_episode % self.num_blocks]
         
-        if self.mask_in_obs:
-            infos = {
+       
+        infos = {
             "placed_block": block_index,
             "hpwl": hpwl,
             "episode_steps": self.num_step_episode,
             "cumulative_reward": self.cumulative_reward,
             "wirelength": wirelength,
             "num_episode": self.num_episode,
-            }
-            return (
-                {
-                    "board_image": board_image,
-                    "place_infos": place_infos,
-                    "next_block": next_block,
-                    "action_mask":action_mask
-                },
-                reward,
-                done,
-                infos,
-            )
-        else:
-            infos = {
-                "placed_block": block_index,
-                "hpwl": hpwl,
-                "episode_steps": self.num_step_episode,
-                "cumulative_reward": self.cumulative_reward,
-                "wirelength": wirelength,
-                "num_episode": self.num_episode,
-                "action_mask": action_mask,
-            }
+            "action_mask": action_mask,
+        }
 
-            return (
-                {
-                    "board_image": board_image,
-                    "place_infos": place_infos,
-                    "next_block": next_block,
-                },
-                reward,
-                done,
-                infos,
-            )
+        return (
+            {
+                "board_image": board_image,
+                "place_infos": place_infos,
+                "next_block": next_block,
+            },
+            reward,
+            done,
+            truncated,
+            infos,
+        )
     
     def reset(self):
         self.num_step_episode = 0
@@ -155,29 +115,21 @@ class ClassicPlacement(Placement):
 
         (wire_term, critical_path_delay, wirelength) = (0, 0, 0)
 
-        if self.mask_in_obs:
-            return {
-                "board_image": self.board_image,
-                "place_infos": self.place_infos,
-                "next_block": self.place_order[0],
-                "action_mask": self.get_mask()
-            }
-        else:
-            infos = {
-                "placed_block": None,
-                "hpwl": 0,
-                "episode_steps": self.num_step_episode,
-                "cumulative_reward": self.cumulative_reward,
-                "wirelength": wirelength,
-                "num_episode": self.num_episode,
-                "action_mask": self.get_mask(),
-            }
+        infos = {
+            "placed_block": None,
+            "hpwl": 0,
+            "episode_steps": self.num_step_episode,
+            "cumulative_reward": self.cumulative_reward,
+            "wirelength": wirelength,
+            "num_episode": self.num_episode,
+            "action_mask": self.get_mask(),
+        }
 
-            return {
-                "board_image": self.board_image,
-                "place_infos": self.place_infos,
-                "next_block": self.place_order[0],
-            }, infos
+        return {
+            "board_image": self.board_image,
+            "place_infos": self.place_infos,
+            "next_block": self.place_order[0],
+        }, infos
     
     def get_mask(self, block_index=None):
         if block_index is None:

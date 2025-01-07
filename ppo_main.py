@@ -15,14 +15,13 @@ import place_env
 from ppo.rollout import RolloutStorage
 from ppo.evaluation import evaluate
 
-def make_env(env_name, log_dir, simulator=False, num_target_blocks=15, mask_in_obs=True):
+def make_env(env_name, log_dir, simulator=False, num_target_blocks=15):
     def thunk():
         env = gym.make(
             env_name,
             log_dir=log_dir,
             simulator=simulator,
-            num_target_blocks=num_target_blocks,
-            mask_in_obs=mask_in_obs
+            num_target_blocks=num_target_blocks
         )
         return env
 
@@ -94,8 +93,7 @@ if __name__ == "__main__":
                 env_name=args.env,
                 log_dir=log_dir,
                 simulator=False,
-                num_target_blocks=args.num_target_blocks,
-                mask_in_obs=True
+                num_target_blocks=args.num_target_blocks
             )
             for i in range(args.num_envs)
         ]
@@ -114,7 +112,7 @@ if __name__ == "__main__":
     )
     
     num_steps = 0
-    observation_ = envs.reset()
+    observation_, infos = envs.reset()
     
     for i in range(0, args.total_timesteps // args.rollout_size):
         for step in range(0, args.rollout_size):
@@ -122,7 +120,7 @@ if __name__ == "__main__":
                 observation_["board_image"],
                 observation_["place_infos"],
                 observation_["next_block"],
-                observation_["action_mask"],
+                infos["action_mask"],
             )
             action, action_log_prob = agent.choose_action(
                 # normalize(board_image, "board_image"),
@@ -130,7 +128,7 @@ if __name__ == "__main__":
                 action_mask,
             )
 
-            observation_, reward, done, infos = envs.step(action)
+            observation_, reward, done, truncated, infos = envs.step(action)
 
             rollouts.insert(
                 # normalize(board_image, "board_image"),
@@ -154,7 +152,7 @@ if __name__ == "__main__":
                             [
                                 str(item)
                                 for item in [
-                                    infos[i]["episode_steps"] for i in workers_index
+                                    infos["episode_steps"][i] for i in workers_index
                                 ]
                             ]
                         ),
@@ -162,7 +160,7 @@ if __name__ == "__main__":
                             [
                                 str(item)
                                 for item in [
-                                    round(infos[i]["hpwl"], 2) for i in workers_index
+                                    round(infos["hpwl"][i], 2) for i in workers_index
                                 ]
                             ]
                         ),
@@ -170,7 +168,7 @@ if __name__ == "__main__":
                             [
                                 str(item)
                                 for item in [
-                                    infos[i]["wirelength"] for i in workers_index
+                                    infos["wirelength"][i] for i in workers_index
                                 ]
                             ]
                         ),
@@ -178,7 +176,7 @@ if __name__ == "__main__":
                             [
                                 str(item)
                                 for item in [
-                                    round(infos[i]["cumulative_reward"], 2)
+                                    round(infos["cumulative_reward"][i], 2)
                                     for i in workers_index
                                 ]
                             ]
@@ -240,8 +238,7 @@ if __name__ == "__main__":
                 args.env,
                 log_dir=evaluation_path,
                 simulator=True,
-                num_target_blocks=args.num_target_blocks,
-                mask_in_obs=True
+                num_target_blocks=args.num_target_blocks
             )
 
             cumulative_reward_list, steps_episode, end_hpwl, end_wirelength = evaluate(

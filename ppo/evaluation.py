@@ -25,7 +25,7 @@ class CategoricalMasked(Categorical):
 def choose_action(actor, board_image, action_mask, device):
     with torch.no_grad():
         board_image = torch.tensor(board_image, dtype=torch.float32).to(device)
-        action_mask = torch.tensor(action_mask, dtype=torch.bool).to(device)
+        action_mask = torch.tensor(np.stack(action_mask, axis=0), dtype=torch.bool).to(device)
         logits = actor(board_image)
 
         dist = CategoricalMasked(
@@ -77,11 +77,11 @@ def evaluate(actor, env, device, critic=None):
     for j in range(10):
         i = 0
         cumulative_reward = 0
-        observation_ = env.reset()
+        observation_, infos = env.reset()
         while not done:
             board_image, action_mask = (
                 observation_["board_image"],
-                observation_["action_mask"],
+                infos["action_mask"],
             )
             action = choose_action(
                 actor,
@@ -98,7 +98,7 @@ def evaluate(actor, env, device, critic=None):
                 )
                 # print(value)
                 value_list.append(value.item())
-            observation_, reward, done, infos = env.step(action[0])
+            observation_, reward, done, truncated, infos = env.step(action[0])
             if critic is not None:
                 reward_list.append(reward)
                 done_list.append(done)
