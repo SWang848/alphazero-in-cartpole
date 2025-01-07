@@ -247,13 +247,17 @@ class TransitionBuffer:
     
     @staticmethod
     def compute_evaluation_buffers(buffers: List["TransitionBuffer"]):
-        stats = {"action": [], "reward": [], "info": [], "mcts_policy": [], "value_target": []}
+        stats = {"action": [], "reward": [], "info": [], "mcts_policy": [], "value_target": [], "cumulative_reward": [], "last_hpwl":[], "last_wirelength": []}
         for buffer in buffers:
+            stats["cumulative_reward"].append(buffer.infos[-1]['cumulative_reward'])
+            stats["last_hpwl"].append(buffer.infos[-1]['hpwl'])
+            stats["last_wirelength"].append(buffer.infos[-1]['wirelength'])
             stats["action"].extend(buffer.actions)
             stats["reward"].extend(buffer.rewards)
             stats["info"].extend(buffer.infos)
             stats["mcts_policy"].extend(buffer.mcts_policies)
             stats["value_target"].extend(buffer.value_targets)
+        
         return stats
         
      

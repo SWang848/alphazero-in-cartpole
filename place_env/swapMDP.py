@@ -127,7 +127,7 @@ class SwapPlacement(Placement):
             else:
                 (wire_term, critical_path_delay, wirelength) = (0, 0, 0)
         
-        self.cumulative_reward += 0.99**self.num_step_episode * reward
+        self.cumulative_reward += 1**self.num_step_episode * reward
         self.num_step += 1
         self.num_step_episode += 1
         action_mask = self.get_mask()

@@ -52,6 +52,13 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
         ).remote(config, args.device_workers, args.amp, replay_buffer, storage)
         for _ in range(args.num_rollout_workers)
     ]
+    
+    test_workers = [
+        TestWorker.options(
+            num_cpus=args.num_cpus_per_worker, num_gpus=args.num_gpus_per_worker
+        ).remote(config, args.device_workers, args.amp, replay_buffer, storage)
+        for _ in range(args.num_test_workers)
+    ]
 
     workers = [rollout_worker.run.remote() for rollout_worker in rollout_workers]
 
@@ -112,6 +119,30 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
         rollout_worker_logs = ray.get(storage.pop_rollout_worker_logs.remote())
         wandb_logs = ray.get(storage.pop_wandb_logs.remote())
 
+        if args.wandb and not args.debug:
+            if train_step % config.evaluation_interval == 0:
+                num_episodes_per_worker = int(args.num_test_episodes / args.num_rollout_workers)
+                test_workers = [
+                    test_worker.run.remote(model.get_weights(), num_episodes_per_worker)
+                    for test_worker in test_workers
+                ]
+                
+                ray.wait(test_workers)
+                cumulative_reward_list = []
+                last_hpwl_list = []
+                last_wirelength_list = []
+                for i, test_worker in enumerate(test_workers):
+                    _, evaulation_stats_all = ray.get(test_worker.get_stats.remote())
+                    cumulative_reward_list.extend(evaulation_stats_all["cumulative_reward"])
+                    last_hpwl_list.extend(evaulation_stats_all["last_hpwl"])
+                    last_wirelength_list.extend(evaulation_stats_all["last_wirelength"])
+                
+                wandb.log({
+                    "evaluation/last_hpwl_mean": mean(last_hpwl_list),
+                    "evaluation/last_wirelength_mean": mean(last_wirelength_list),
+                    "evaluation/cumulative_reward": mean(cumulative_reward_list)
+                }, step=train_step)
+                
         if args.wandb and not args.debug:
             print(wandb_logs)
             wandb.log(
