@@ -56,7 +56,7 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
     test_workers = [
         TestWorker.options(
             num_cpus=args.num_cpus_per_worker, num_gpus=args.num_gpus_per_worker
-        ).remote(config, args.device_workers, args.amp, replay_buffer, storage)
+        ).remote(config, args.device_workers, args.amp)
         for _ in range(args.num_test_workers)
     ]
 
@@ -121,13 +121,14 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
 
         if args.wandb and not args.debug:
             if train_step % config.evaluation_interval == 0:
-                num_episodes_per_worker = int(args.num_test_episodes / args.num_rollout_workers)
-                test_workers = [
+                num_episodes_per_worker = int(args.num_test_episodes / args.num_test_workers)
+                testWorkers = [
                     test_worker.run.remote(model.get_weights(), num_episodes_per_worker)
                     for test_worker in test_workers
                 ]
                 
-                ray.wait(test_workers)
+                print("waiting test workers finished")
+                ray.wait(testWorkers)
                 cumulative_reward_list = []
                 last_hpwl_list = []
                 last_wirelength_list = []

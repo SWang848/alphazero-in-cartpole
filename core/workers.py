@@ -19,6 +19,7 @@ class MCTSWorker:
         amp: bool,
         num_envs: int,
         use_dirichlet: bool,
+        simulator: bool = False,
     ):
         self.config = config
         self.model = self.config.init_model(device, amp)
@@ -26,7 +27,7 @@ class MCTSWorker:
         self.num_envs = num_envs
         self.use_dirichlet = use_dirichlet
 
-        self.envs = [config.env_creator(simulator=False, num_target_blocks=config.num_target_blocks) for _ in range(self.num_envs)]
+        self.envs = [config.env_creator(simulator=simulator, num_target_blocks=config.num_target_blocks) for _ in range(self.num_envs)]
         self.env_observation_space = self.envs[0].observation_space["board_image"]
         self.env_action_space = self.envs[0].action_space
 
@@ -222,10 +223,11 @@ class TestWorker(MCTSWorker):
         config: BaseConfig,
         device: str,
         amp: bool,
+        simulator: bool = True,
     ):
         num_envs = config.num_envs_per_worker
         use_dirichlet = config.test_use_dirichlet
-        super().__init__(config, device, amp, num_envs, use_dirichlet)
+        super().__init__(config, device, amp, num_envs, use_dirichlet, simulator)
 
         self.stats = None
         self.evaluation_stats = None
