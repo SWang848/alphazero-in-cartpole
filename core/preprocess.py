@@ -218,6 +218,11 @@ def get_netlist_list_removing_duplicates(netlist_list: list) -> list:
 def set_place_order(blocks_list, num_placed_blocks, type="default"):
     if type == "default":
         return blocks_list[:num_placed_blocks]["index"].to_list()
+    elif type == "connections_":
+        sorted_df = blocks_list[:num_placed_blocks].sort_values(
+            by="connections", ascending=True
+        )
+        return sorted_df["index"].to_list()
     elif type == "connections":
         sorted_df = blocks_list[:num_placed_blocks].sort_values(
             by="connections", ascending=False

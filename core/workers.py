@@ -231,7 +231,7 @@ class TestWorker(MCTSWorker):
         config: BaseConfig,
         device: str,
         amp: bool,
-        simulator: bool = True,
+        simulator: bool = False,
     ):
         num_envs = config.num_envs_per_worker
         use_dirichlet = config.test_use_dirichlet

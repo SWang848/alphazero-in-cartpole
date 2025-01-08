@@ -24,7 +24,7 @@ class TrainingBatch:
         for f in fields(self):
             if f.name == "infos":
                 continue
-            
+
             if f.name == "action_mask":
                 setattr(
                     self,
@@ -110,12 +110,21 @@ class TransitionBuffer:
         for i in reversed(range(self.size())):
             self.value_targets[i] = ret
             if i > 0:
-                ret = accum([gamma*ret, self.rewards[i-1]])
+                ret = accum([gamma * ret, self.rewards[i - 1]])
             else:
                 pass
 
     def add_one(
-        self, obs, action, reward, done, info, mcts_policy, value_target, env_state, priority
+        self,
+        obs,
+        action,
+        reward,
+        done,
+        info,
+        mcts_policy,
+        value_target,
+        env_state,
+        priority,
     ):
         self.obs.append(obs)
         self.actions.append(action)
@@ -159,22 +168,26 @@ class TransitionBuffer:
     ) -> Tuple[List["TrainingBatch"], List[np.ndarray]]:
         if batch_size > self.size():
             print("Warning: trying to sample more samples than in transition buffer!")
-        
+
         alpha = 1.0
         probs = np.array(self.priorities) ** alpha
         probs /= probs.sum()
-        
+
         train_batch_list = []
         sample_indices_list = []
-        for mini_batch_indices in BatchSampler(SubsetRandomSampler(range(self.size())), batch_size=batch_size, drop_last=False):
+        for mini_batch_indices in BatchSampler(
+            SubsetRandomSampler(range(self.size())),
+            batch_size=batch_size,
+            drop_last=False,
+        ):
             train_batch_args = []
             for f in fields(TrainingBatch):
                 field_name = f.name
                 if field_name == "action_mask":
-                    samples = getattr(self, "infos") # action mask is stored in infos
+                    samples = getattr(self, "infos")  # action mask is stored in infos
                 else:
                     samples = getattr(self, field_name)  # [sample_indices]
-                    
+
                 if field_name == "obs":  # We frame-stack obs
                     samples = list(
                         map(
@@ -183,7 +196,9 @@ class TransitionBuffer:
                         )
                     )
                 elif field_name == "action_mask":
-                    samples = list(map(lambda i: samples[i]["action_mask"], mini_batch_indices))
+                    samples = list(
+                        map(lambda i: samples[i]["action_mask"], mini_batch_indices)
+                    )
                 else:
                     samples = list(map(lambda i: samples[i], mini_batch_indices))
 
@@ -193,9 +208,9 @@ class TransitionBuffer:
                 train_batch_args.append(samples)
             train_batch_list.append(TrainingBatch(*train_batch_args))
             sample_indices_list.append(mini_batch_indices)
-        
-        return train_batch_list, sample_indices_list  
-    
+
+        return train_batch_list, sample_indices_list
+
     @staticmethod
     def fuse_buffers(buffers: List["TransitionBuffer"]):
         fused_buffer = TransitionBuffer()
@@ -214,7 +229,7 @@ class TransitionBuffer:
         stats["entropy_mean"] = mean(entropy(self.mcts_policies, axis=1))
 
         for k in self.infos[0].keys():
-            if k == "hpwl" or k == "cumulative_reward" :   
+            if k == "hpwl" or k == "cumulative_reward":
                 vals = []
                 for i in range(self.size()):
                     vals.append(self.infos[i][k])
@@ -236,31 +251,44 @@ class TransitionBuffer:
                 else:
                     stats[k].append(v)
         return stats
-    
+
     @staticmethod
     def compute_wandb_buffers(buffers: List["TransitionBuffer"]):
-        stats = {"end_of_episode_rewards": [], "end_of_episode_wirelength": []}   
+        stats = {
+            "end_of_episode_rewards": [],
+            "end_of_episode_wirelength": [],
+            "end_of_episode_hpwl": [],
+        }
         for buffer in buffers:
+            stats["end_of_episode_hpwl"].append(buffer.infos[-1]["hpwl"])
             stats["end_of_episode_rewards"].append(buffer.rewards[-1])
             stats["end_of_episode_wirelength"].append(buffer.infos[-1]["wirelength"])
         return stats
-    
+
     @staticmethod
     def compute_evaluation_buffers(buffers: List["TransitionBuffer"]):
-        stats = {"action": [], "reward": [], "info": [], "mcts_policy": [], "value_target": [], "cumulative_reward": [], "last_hpwl":[], "last_wirelength": []}
+        stats = {
+            "action": [],
+            "reward": [],
+            "info": [],
+            "mcts_policy": [],
+            "value_target": [],
+            "cumulative_reward": [],
+            "last_hpwl": [],
+            "last_wirelength": [],
+        }
         for buffer in buffers:
-            stats["cumulative_reward"].append(buffer.infos[-1]['cumulative_reward'])
-            stats["last_hpwl"].append(buffer.infos[-1]['hpwl'])
-            stats["last_wirelength"].append(buffer.infos[-1]['wirelength'])
+            stats["cumulative_reward"].append(buffer.infos[-1]["cumulative_reward"])
+            stats["last_hpwl"].append(buffer.infos[-1]["hpwl"])
+            stats["last_wirelength"].append(buffer.infos[-1]["wirelength"])
             stats["action"].extend(buffer.actions)
             stats["reward"].extend(buffer.rewards)
             stats["info"].extend(buffer.infos)
             stats["mcts_policy"].extend(buffer.mcts_policies)
             stats["value_target"].extend(buffer.value_targets)
-        
+
         return stats
-        
-     
+
     def update_priorities(self, batch_indices, new_priorities):
         for i, prio in enumerate(new_priorities):
             self.priorities[batch_indices[i]] = prio
@@ -288,13 +316,13 @@ class ReplayBuffer:
         num_drop = self.transitions.size() - self.size
         if num_drop > 0:
             self.transitions.drop_first_n(num_drop)
-            
+
     def sample(self, batch_size, frame_stack) -> Tuple[TrainingBatch, np.ndarray]:
         return self.transitions.sample_training_batch(batch_size, frame_stack)
 
     def size(self) -> int:
         return len(self.transitions.obs)
-    
+
     def get_transitions(self) -> TransitionBuffer:
         return self.transitions
 
