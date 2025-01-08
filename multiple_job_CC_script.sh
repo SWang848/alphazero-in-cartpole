@@ -3,7 +3,7 @@
 # mcts script
 for c_init in 2 3 4; do
     for num_simulations in 120 150; do
-        sbatch CC_script.sh $c_init $num_simulations
+        sbatch CC_script.sh $c_init $num_simulations 
     done
 done
 

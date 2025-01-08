@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=1
-#SBATCH --ntasks-per-node=18
+#SBATCH --ntasks-per-node=16
 #SBATCH --mem=30G
 #SBATCH --time=60:00:00
 #SBATCH --account=rrg-mtaylor3
@@ -54,10 +54,10 @@ sleep 20
 #                 --min_num_episodes_per_worker 20 --num_target_blocks 15 --num_simulations $2 \
 #                 --training_steps 80 --c_init $1 --value_support_min -20 --value_support_max 0 --value_support_delta 1
 
-PYTHONUNBUFFERED=1 python3 -u main.py --wandb --amp --cc --group_name c15b_classic_MCTS --env Classic-v0 --seed 0 \
-                    --num_rollout_workers 8 --num_cpus_per_worker 2 --num_envs_per_worker 20 --num_gpus_per_worker 0.12 \
-                    --min_num_episodes_per_worker 20 --num_target_blocks 15 --num_simulations $2 \
-                    --training_steps 40 --c_init $1 --value_support_min -20 --value_support_max 0 --value_support_delta 1
+# PYTHONUNBUFFERED=1 python3 -u main.py --wandb --amp --cc --group_name c15b_classic_MCTS --env Classic-v0 --seed 0 \
+#                     --num_rollout_workers 8 --num_cpus_per_worker 2 --num_envs_per_worker 20 --num_gpus_per_worker 0.12 \
+#                     --min_num_episodes_per_worker 20 --num_target_blocks 15 --num_simulations $2 \
+#                     --training_steps 40 --c_init $1 --value_support_min -20 --value_support_max 0 --value_support_delta 1
 
 # c15b swap MDP;
 PYTHONUNBUFFERED=1 python3 -u main.py --wandb --amp --cc --group_name c15b_swap_MCTS --env Swap-v0 --seed 0 \
