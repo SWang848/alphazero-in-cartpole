@@ -1,9 +1,10 @@
 #!bin/bash
 
 # mcts script
-for c_init in 2 3 4; do
-    for num_simulations in 120 150; do
-        sbatch CC_script.sh $c_init $num_simulations 
+for c_init in 3 4; do
+    for lr in 1e-3 1e-4; do
+        for seed in 0 10 100; do
+            sbatch CC_script.sh $c_init $lr $seed
     done
 done
 

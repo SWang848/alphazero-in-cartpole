@@ -53,15 +53,15 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
         for _ in range(args.num_rollout_workers)
     ]
     
-    test_workers = [
-        TestWorker.options(
-            num_cpus=args.num_cpus_per_worker, num_gpus=args.num_gpus_per_worker
-        ).remote(config, args.device_workers, args.amp)
-        for _ in range(args.num_test_workers)
-    ]
+    # test_workers = [
+    #     TestWorker.options(
+    #         num_cpus=args.num_cpus_per_worker, num_gpus=args.num_gpus_per_worker
+    #     ).remote(config, args.device_workers, args.amp)
+    #     for _ in range(args.num_test_workers)
+    # ]
 
     workers = [rollout_worker.run.remote() for rollout_worker in rollout_workers]
-
+ 
     storage.set_start_signal.remote()
 
     for train_step in range(config.training_steps):
