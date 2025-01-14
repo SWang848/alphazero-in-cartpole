@@ -209,7 +209,7 @@ class SwapPlacement(Placement):
         return optimized_action
 
     def hpwl_diff_reward(self, last_hpwl, hpwl):
-        reward = (last_hpwl - hpwl)/1000
+        reward = (last_hpwl - hpwl)/100
         return reward
     
     def _get_observation(self, block_index, coord_x, coord_y):

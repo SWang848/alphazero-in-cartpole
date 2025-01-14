@@ -20,7 +20,7 @@ export results=$SLURM_TMPDIR/results
 cp -R /home/shang8/scratch/alphazero-in-cartpole/data $SLURM_TMPDIR/data
 export data=$SLURM_TMPDIR/data
 export HEAD_NODE=$(hostname)
-export RAY_PORT=34567
+export RAY_PORT=$(python3 -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()')
 
 module load python/3.10
 module load cuda
