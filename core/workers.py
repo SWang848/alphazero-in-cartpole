@@ -105,7 +105,7 @@ class MCTSWorker:
                 )
                 # action = np.random.choice(range(self.env_action_space.n), p=mcts_policy)  # We could also sample instead of maxing
                 actions.append(action)
-
+                print(f'action {action} value {values}')
                 obs, reward, done, truncated, info = self.envs[env_index].step(
                     action
                 )  # Apply action
@@ -116,6 +116,7 @@ class MCTSWorker:
                     )
                 else:
                     value_target = root_values[env_index]
+                print(f'value target {value_target}')
 
                 transition_buffers[env_index].add_one(  # Add experience to data storage
                     mcts_windows[

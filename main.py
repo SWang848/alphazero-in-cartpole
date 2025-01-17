@@ -103,6 +103,8 @@ if __name__ == "__main__":
         wandb.init(project="MCTSplace", group=args.group_name, config=config)
 
     model = config.init_model(args.device_trainer, args.amp)  # Create (and load) model
+    args.model_path = "/home/truong/code/alphazero-in-cartpole/saved_weight/Swap-v0_14012025_1611_59/model_latest.pt"
+    #args.model_path = "/home/truong/code/alphazero-in-cartpole/saved_weight/n100/Swap-v0_14012025_1107_59/model_latest.pt"
     if args.model_path is not None:
         model.load_state_dict(torch.load(args.model_path))
 
@@ -111,6 +113,16 @@ if __name__ == "__main__":
         if opr == "train":
             train(args, config, model, summary_writer, log_dir)
         elif opr == "test":
+            config.num_envs_per_worker = 1
+            config.num_simulations = 10
+            #args.opr = "test"
+            args.num_rollout_workers = 1
+            args.num_cpus_per_worker = 1
+            #args.num_gpus_per_worker = 0
+            args.num_test_episodes = 1
+            config.num_target_blocks = 15
+            args.num_target_blocks = 15
+            config.c_init = 1.25
             test(args, config, model, log_dir)
         elif opr == "pretrain":
             pretrain(args, config, model, summary_writer, log_dir)

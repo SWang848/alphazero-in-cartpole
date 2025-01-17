@@ -42,8 +42,8 @@ def test(args, config, model, log_dir):
         # stats["info"] = evaulation_stats_all["info"][i]
         stats["mcts_policy"] = evaulation_stats_all["mcts_policy"][i]
         stats["value_target"] = evaulation_stats_all["value_target"][i]
-        print(f"step: {i}\n")
-        print(stats)
+        print(f'{stats["value_target"]}')
+        #print(stats)
         
         
     accum_stats = {}  # Calculate stats
@@ -54,8 +54,8 @@ def test(args, config, model, log_dir):
         accum_stats[f"{k}_max"] = float(max(v))
     # print(yaml.dump(accum_stats, allow_unicode=True, default_flow_style=False))
 
-    with open(os.path.join(log_dir, "result.yml"), "w") as yaml_file:  # Write to file
-        yaml.dump(accum_stats, yaml_file, default_flow_style=False)
+    #with open(os.path.join(log_dir, "result.yml"), "w") as yaml_file:  # Write to file
+    #    yaml.dump(accum_stats, yaml_file, default_flow_style=False)
 
     print("Testing finished!")
 
