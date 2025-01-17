@@ -45,7 +45,7 @@ class SwapPlacement(Placement):
                 "next_block": spaces.Discrete(self.num_blocks),
             }
         )
-
+        self.curr_block_ptr = 0
         self.episode_step_limit = self.preprocess.num_target_blocks
         self.num_step = 0
         self.num_episode = 0
@@ -85,10 +85,23 @@ class SwapPlacement(Placement):
         self.prev_actions.append(self.action)
 
         last_hpwl = self.calculate_hpwl()
-        block_index = self.place_order[self.num_step_episode % self.num_blocks]
-        board_image, place_infos = self._get_observation(block_index, x, y)
-
+        block_index = self.place_order[self.curr_block_ptr % self.num_blocks]
+        #block_index = self.place_order[self.num_step_episode % self.num_blocks]
+        board_image, place_infos, swapped_out_block = self._get_observation(block_index, x, y)
+        
         hpwl = self.calculate_hpwl()
+        if last_hpwl > hpwl:
+            # improvement
+            self.curr_block_ptr += 1
+        else:
+            # not an improvement. undo the previous 
+            if swapped_out_block != None:
+                board_image, place_infos, swapped_out_block_v2 = self._get_observation(swapped_out_block, x, y)
+                assert block_index == swapped_out_block_v2
+            else:
+                self.curr_block_ptr += 1
+
+
         # reward = self.hpwl_reward(hpwl)
         reward = self.hpwl_diff_reward(last_hpwl, hpwl)
         # if action == self.cheat_trajectory[self.num_step_episode]:
@@ -142,6 +155,7 @@ class SwapPlacement(Placement):
         self.board_image = self.init_board_image.copy()
         self.place_infos = self.init_place_infos.copy()
         self.prev_actions = []
+        self.curr_block_ptr = 0
 
         hpwl = self.calculate_hpwl()
 
@@ -212,18 +226,18 @@ class SwapPlacement(Placement):
         reward = (last_hpwl - hpwl)/10
         return reward
     
-    def _get_observation(self, block_index, coord_x, coord_y):
+    def _get_observation(self, block_index, coord_x, coord_y, undo=False):
 
         current_block_coord_x = self.place_coords[block_index][0]
         current_block_coord_y = self.place_coords[block_index][1]
 
         next_block_coord_x = self.place_coords[
-            self.place_order[(self.num_step_episode + 1) % self.num_blocks]
+            self.place_order[(self.curr_block_ptr + 1) % self.num_blocks]
         ][0]
         next_block_coord_y = self.place_coords[
-            self.place_order[(self.num_step_episode + 1) % self.num_blocks]
+            self.place_order[(self.curr_block_ptr + 1) % self.num_blocks]
         ][1]
-
+        swap_block_index = None
         # place block to empty grid
         if self.board_image[0, coord_x, coord_y] == 0:
             # place_info update
@@ -269,7 +283,7 @@ class SwapPlacement(Placement):
             self.board_image[1, current_block_coord_x, current_block_coord_y] = 0
             self.board_image[1, next_block_coord_x, next_block_coord_y] = 1
 
-        return self.board_image.copy(), self.place_infos.copy()
+        return self.board_image.copy(), self.place_infos.copy(), swap_block_index
 
     def _place_initial_blocks(self, optimized_file, seed=0):
         """CXB experiment"""
