@@ -152,9 +152,9 @@ class Placement(gym.Env):
             max_hpwl = 5700
 
         # scaled_reward = (best_hpwl_results - hpwl) / 1000
-        normalized_reward = (1 - ((hpwl - best_hpwl) / (max_hpwl - best_hpwl))) * 1
+        normalized_reward = ((hpwl - best_hpwl) / (max_hpwl - best_hpwl)) * 1
         normalized_reward = max(0, min(1, normalized_reward))
-        normalized_reward = normalized_reward - 1
+        normalized_reward = -normalized_reward
 
         # normalized_reward = -hpwl / 1000
 

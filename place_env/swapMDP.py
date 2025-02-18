@@ -52,11 +52,6 @@ class SwapPlacement(Placement):
         self.num_step_episode = 0
         self.cumulative_reward = 0
         self.place_coords = np.full((len(self.blocks_list), 2), -1)
-        self.init_board_image, self.init_place_infos, self.init_place_coords = (
-            self._place_initial_blocks(
-                optimized_file=os.path.join(self.data_dir, "optimized.place")
-            )
-        )
 
         # render
         self.grid_width_size = self.width
@@ -84,13 +79,13 @@ class SwapPlacement(Placement):
         self.action = action
         self.prev_actions.append(self.action)
 
-        last_hpwl = self.calculate_hpwl()
+        # last_hpwl = self.calculate_hpwl()
         block_index = self.place_order[self.num_step_episode % self.num_blocks]
         board_image, place_infos = self._get_observation(block_index, x, y)
 
         hpwl = self.calculate_hpwl()
-        # reward = self.hpwl_reward(hpwl)
-        reward = self.hpwl_diff_reward(last_hpwl, hpwl)
+        reward = self.hpwl_reward(hpwl)
+        # reward = self.hpwl_diff_reward(last_hpwl, hpwl)
         # if action == self.cheat_trajectory[self.num_step_episode]:
         #     reward = 0.0
         done = False
@@ -138,11 +133,11 @@ class SwapPlacement(Placement):
     def reset(self):
         self.num_step_episode = 0
         self.cumulative_reward = 0
-        self.place_coords = self.init_place_coords.copy()
-        self.board_image = self.init_board_image.copy()
-        self.place_infos = self.init_place_infos.copy()
         self.prev_actions = []
-
+        self.board_image, self.place_infos, self.place_coords = self._place_initial_blocks(
+                optimized_file=os.path.join(self.data_dir, "optimized.place")
+            )
+        
         hpwl = self.calculate_hpwl()
 
         if self.simulator:
@@ -273,11 +268,11 @@ class SwapPlacement(Placement):
 
     def _place_initial_blocks(self, optimized_file, seed=0):
         """CXB experiment"""
-        self.place_coords = np.full((len(self.blocks_list), 2), -1)
-        self.board_image = np.zeros(
+        place_coords = np.full((len(self.blocks_list), 2), -1)
+        board_image = np.zeros(
             self.observation_space["board_image"].shape, dtype=float
         )
-        self.place_infos = np.full(
+        place_infos = np.full(
             self.observation_space["place_infos"].shape, -1, dtype=int
         )
         # place the initial blocks
@@ -295,8 +290,8 @@ class SwapPlacement(Placement):
                     x, y = coords[0], coords[1]
                     block_index = int(line_split[-1][1:])
 
-                    self.place_coords[block_index] = [x, y]
-                    self.board_image[0, x, y] += 1
+                    place_coords[block_index] = [x, y]
+                    board_image[0, x, y] += 1
                     num_sink = self.blocks_list.loc[
                         self.blocks_list["index"] == block_index
                     ]["sink"].values[0]
@@ -306,14 +301,14 @@ class SwapPlacement(Placement):
                     num_connections = self.blocks_list.loc[
                         self.blocks_list["index"] == block_index
                     ]["connections"].values[0]
-                    self.board_image[3, x, y] = num_sink
-                    self.board_image[4, x, y] = num_source
-                    self.board_image[5, x, y] = num_connections
+                    board_image[3, x, y] = num_sink
+                    board_image[4, x, y] = num_source
+                    board_image[5, x, y] = num_connections
                     type = self.blocks_list.loc[
                         self.blocks_list["index"] == block_index
                     ]["type"].values[0]
 
-                    self.place_infos[block_index] = [
+                    place_infos[block_index] = [
                         block_index,
                         x,
                         y,
@@ -329,16 +324,16 @@ class SwapPlacement(Placement):
             swappable_positions[1].append(i % self.width)
 
         # random place the target blocks
-        np.random.seed(seed)
+        # np.random.seed(seed)
         valid_position = self.get_mask()
         for block_index in self.place_order:
             random_index = np.random.choice(np.where(valid_position == 1)[0])
             x, y = random_index // self.width, random_index % self.width
 
-            self.place_coords[block_index] = [x, y]
-            self.board_image[0, x, y] += 1
+            place_coords[block_index] = [x, y]
+            board_image[0, x, y] += 1
             if block_index == self.place_order[0]:
-                self.board_image[1, x, y] = 1
+                board_image[1, x, y] = 1
 
             num_sink = self.blocks_list.loc[self.blocks_list["index"] == block_index][
                 "sink"
@@ -349,14 +344,14 @@ class SwapPlacement(Placement):
             num_connections = self.blocks_list.loc[
                 self.blocks_list["index"] == block_index
             ]["connections"].values[0]
-            self.board_image[3, x, y] = num_sink
-            self.board_image[4, x, y] = num_source
-            self.board_image[5, x, y] = num_connections
+            board_image[3, x, y] = num_sink
+            board_image[4, x, y] = num_source
+            board_image[5, x, y] = num_connections
             type = self.blocks_list.loc[self.blocks_list["index"] == block_index][
                 "type"
             ].values[0]
 
-            self.place_infos[block_index] = [
+            place_infos[block_index] = [
                 block_index,
                 x,
                 y,
@@ -367,12 +362,12 @@ class SwapPlacement(Placement):
             ]
 
             valid_position[random_index] = 0
-        self.board_image[2, swappable_positions[0], swappable_positions[1]] = 1
+        board_image[2, swappable_positions[0], swappable_positions[1]] = 1
         # print(self.calculate_hpwl())
         # print(self.calculate_hpwl())
 
         return (
-            self.board_image,
-            self.place_infos,
-            self.place_coords,
+            board_image,
+            place_infos,
+            place_coords,
         )
