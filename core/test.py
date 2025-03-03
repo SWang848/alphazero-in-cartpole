@@ -36,15 +36,17 @@ def test(args, config, model, log_dir):
 
     
     stats = {}
+    action_trajectory = []
     for i in range(len(evaulation_stats_all["action"])):
         stats["action"] = evaulation_stats_all["action"][i]
         stats["reward"] = evaulation_stats_all["reward"][i]
         # stats["info"] = evaulation_stats_all["info"][i]
         stats["mcts_policy"] = evaulation_stats_all["mcts_policy"][i]
         stats["value_target"] = evaulation_stats_all["value_target"][i]
+        action_trajectory.append(evaulation_stats_all["action"][i])
         print(f"step: {i}\n")
         print(stats)
-        
+    # print(action_trajectory)
         
     accum_stats = {}  # Calculate stats
     for k, v in test_stats_all.items():

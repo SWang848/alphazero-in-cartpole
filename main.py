@@ -15,7 +15,6 @@ from core.train import train
 from core.test import test
 from config.place import Config
 
-
 def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
@@ -105,7 +104,7 @@ if __name__ == "__main__":
     model = config.init_model(args.device_trainer, args.amp)  # Create (and load) model
     if args.model_path is not None:
         model.load_state_dict(torch.load(args.model_path))
-
+        
     opr_lst = args.opr.split(",")
     for opr in opr_lst:
         if opr == "train":
@@ -114,5 +113,5 @@ if __name__ == "__main__":
             test(args, config, model, log_dir)
         elif opr == "pretrain":
             pretrain(args, config, model, summary_writer, log_dir)
-
+    
     print("Finished")

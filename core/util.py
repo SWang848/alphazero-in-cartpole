@@ -2,6 +2,7 @@ import torch.nn as nn
 import graphviz
 import numpy as np
 import torch
+import os
 
 
 def random_seed(seed):
@@ -10,7 +11,7 @@ def random_seed(seed):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-    
+
 
 def trans_coordinate(coordinate: list, grid_size: int, out_type: str) -> list:
     """
@@ -42,7 +43,7 @@ def fill_place_file(
                     results_dict[str(result)] = 1
 
                 line_split = line.strip().split()
-                
+
                 if len(line_split) < 6:  # case: missing the layer column
                     # stat-padd with 0 for the layer column
                     line_split[1] = str(result[0])  # x
@@ -56,22 +57,23 @@ def fill_place_file(
                 modified_line = "\t".join(line_split) + "\n"
                 new_lines.append(modified_line)
 
-
             elif index < 5:
-                if index in [3, 4] and len(line.strip().split()) < 5:  # case: missing the layer column
+                if (
+                    index in [3, 4] and len(line.strip().split()) < 5
+                ):  # case: missing the layer column
                     """
                     line 3 = "block_name\tx\ty\tsubblk\tlayer\tblock_number\n"
                     line 4 = ------ ----- ---- ----- ---- --- ----
                     """
                     line_split = line.strip().split("\t")
-                    prefix = "\t".join(line_split[0:4])  
+                    prefix = "\t".join(line_split[0:4])
                     # add "layer" to the end of the prefix
                     if index == 3:
                         prefix += "\tlayer"
                     else:
                         prefix += "\t-----"
                     # add the rest of the line to the prefix
-                    prefix += ("\t" + line_split[4] + "\n")
+                    prefix += "\t" + line_split[4] + "\n"
                     new_lines.append(prefix)
                 else:
                     new_lines.append(line)
@@ -80,14 +82,15 @@ def fill_place_file(
         for line in new_lines:
             file.write(line)
 
+
 def mlp(
-        input_size,
-        layer_sizes,
-        output_size,
-        output_activation=nn.Identity,
-        activation=nn.ReLU,
-        momentum=0.1,
-        init_zero=False,
+    input_size,
+    layer_sizes,
+    output_size,
+    output_activation=nn.Identity,
+    activation=nn.ReLU,
+    momentum=0.1,
+    init_zero=False,
 ):
     """MLP layers
     Parameters
@@ -107,13 +110,14 @@ def mlp(
     for i in range(len(sizes) - 1):
         if i < len(sizes) - 2:
             act = activation
-            layers += [nn.Linear(sizes[i], sizes[i + 1]),
-                       nn.BatchNorm1d(sizes[i + 1], momentum=momentum),
-                       act()]
+            layers += [
+                nn.Linear(sizes[i], sizes[i + 1]),
+                nn.BatchNorm1d(sizes[i + 1], momentum=momentum),
+                act(),
+            ]
         else:
             act = output_activation
-            layers += [nn.Linear(sizes[i], sizes[i + 1]),
-                       act()]
+            layers += [nn.Linear(sizes[i], sizes[i + 1]), act()]
 
     if init_zero:
         layers[-2].weight.data.fill_(0)
@@ -122,34 +126,47 @@ def mlp(
     return nn.Sequential(*layers)
 
 
-def plot_node(V_est, traj_nodes, leaf_node, graph: graphviz.Digraph, parent_node, index, min_max_stats, parent_name=None, layer=2):
+def plot_node(
+    V_est,
+    traj_nodes,
+    leaf_node,
+    graph: graphviz.Digraph,
+    parent_node,
+    index,
+    min_max_stats,
+    parent_name=None,
+    layer=1,
+):
     def node_name(node, index):
-        node_name = f'{index}\n' \
-                    f'V = {min_max_stats.normalize(node.mean_value()) if node.num_visits > 0 else 0.0:.3f}\n' \
-                    f'N = {node.num_visits}'
+        node_name = (
+            f"{index}\n"
+            f"V = {min_max_stats.normalize(node.mean_value()) if node.num_visits > 0 else 0.0:.3f}\n"
+            f"N = {node.num_visits}"
+        )
 
         if node == leaf_node:
-            node_name += f'\nV_est={V_est:.3f}'
+            node_name += f"\nV_est={V_est:.3f}"
         return node_name
 
     def edge_label(from_node, to_node):
         action = to_node.action
-        return f'a = {to_node.action}\n' \
-               f'r = {to_node.reward}\n' \
-               f'PUCT = {from_node.puct_scores(min_max_stats)[action]:.3f}\n' \
-               f'Q = {from_node.child_values(min_max_stats)[action]:.3f}\n' \
-               f'P = {from_node.child_priors[action]:.3f}'
+        return (
+            f"a = {to_node.action}\n"
+            f"r = {to_node.reward}\n"
+            f"PUCT = {from_node.puct_scores(min_max_stats)[action]:.3f}\n"
+            f"Q = {from_node.child_values(min_max_stats)[action]:.3f}\n"
+            f"P = {from_node.child_priors[action]:.3f}"
+        )
 
     if parent_name is None:
         parent_name = node_name(parent_node, index)
 
     if parent_node in traj_nodes:
-        graph.node(parent_name, color='red')
+        graph.node(parent_name, color="red")
     elif parent_node.terminal:
-        graph.node(parent_name, color='blue')
+        graph.node(parent_name, color="blue")
     else:
         graph.node(parent_name)
-        
     child_names = []
     i = 0
     for _, (_, child_node) in enumerate(parent_node.children.items()):
@@ -168,34 +185,46 @@ def plot_node(V_est, traj_nodes, leaf_node, graph: graphviz.Digraph, parent_node
 
     if index > len(child_names) * layer:
         return index
-        
+
     j = 0
     for _, (_, child_node) in enumerate(parent_node.children.items()):
         if parent_node.info["action_mask"][child_node.action] == 0:
             continue
-        
+
         j += 1
         if child_node.action != 49:
             continue
-        
-        child_name = child_names[j-1]
-        
-        index = plot_node(V_est, traj_nodes, leaf_node, graph, child_node, index, min_max_stats, parent_name=child_name, layer=layer)
-            
+
+        child_name = child_names[j - 1]
+
+        index = plot_node(
+            V_est,
+            traj_nodes,
+            leaf_node,
+            graph,
+            child_node,
+            index,
+            min_max_stats,
+            parent_name=child_name,
+            layer=layer,
+        )
+
     return index
 
 
 def plot_tree(root_node, leaf_node, V_est, min_max_stats, output_file):
-    g = graphviz.Digraph('g', filename='tree.gv', node_attr={'shape': 'circle'})
+    g = graphviz.Digraph("g", filename="tree.gv", node_attr={"shape": "circle"})
     nodes = []
     parent = leaf_node
     while parent is not None:
         nodes.append(parent)
         parent = parent.parent_traversed
     plot_node(V_est, nodes, leaf_node, g, root_node, 0, min_max_stats)
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
     g.save(filename=output_file)
     # g.view()
-    
+
+
 def set_seed(seed):
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -208,8 +237,8 @@ class MinMaxStats:
     # See: https://arxiv.org/pdf/1911.08265.pdf, p.12
     def __init__(self):
         self.max_delta = 0.01
-        self.maximum = -float('inf')
-        self.minimum = float('inf')
+        self.maximum = -float("inf")
+        self.minimum = float("inf")
 
     def update(self, value: float):
         if value is None:
@@ -220,7 +249,7 @@ class MinMaxStats:
 
     def normalize(self, value: float) -> float:
         delta = self.maximum - self.minimum
-        if delta < self.max_delta:   # See: EfficientZero implementation
+        if delta < self.max_delta:  # See: EfficientZero implementation
             value_norm = (value - self.minimum) / self.max_delta
         else:
             value_norm = (value - self.minimum) / delta

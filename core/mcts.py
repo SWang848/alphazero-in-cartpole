@@ -1,5 +1,6 @@
 from copy import deepcopy
-
+import random
+import math
 import numpy as np
 
 from core.util import MinMaxStats
@@ -118,16 +119,39 @@ class Node:
         value_score = self.child_values(min_max_stats, mean_q)
         return value_score + prior_score
 
-    def best_action(self, min_max_stats: MinMaxStats, mean_q):
+    # def best_action(self, min_max_stats: MinMaxStats, mean_q):
+    #     score = self.puct_scores(min_max_stats, mean_q)
+    #     masked_score = np.where(self.info["action_mask"], score, -np.inf)
+    #     # masked_score = np.where(self.child_priors != 0, score, -np.inf)
+    #     max_val = np.max(masked_score)
+    #     action = np.random.choice(np.argwhere(masked_score == max_val).flatten())
+    #     return action
+
+    def best_child(self, min_max_stats, mean_q, forced_exploration=False):
         score = self.puct_scores(min_max_stats, mean_q)
         masked_score = np.where(self.info["action_mask"], score, -np.inf)
-        # masked_score = np.where(self.child_priors != 0, score, -np.inf)
-        max_val = np.max(masked_score)
-        action = np.random.choice(np.argwhere(masked_score == max_val).flatten())
-        return action
+        sorted_desc_score = np.argsort(masked_score)[::-1]
+        sorted_desc_score = sorted_desc_score[
+            : np.sum(np.isfinite(masked_score))
+        ]  # remove invalid actions from the sorted list
+        top_20_actions = sorted_desc_score[: math.ceil(0.2 * len(sorted_desc_score))]
+        best_action = sorted_desc_score[0]
 
-    def best_child(self, min_max_stats, mean_q):
-        return self.children[self.best_action(min_max_stats, mean_q)]
+        best_child = self.children[best_action]
+        threshold = math.ceil(
+            3 * self.config.num_simulations / np.sum(self.info["action_mask"])
+        )
+        if forced_exploration:
+            if best_child.num_visits <= threshold:
+                return best_child
+            else:
+                top_20_children = [self.children[action] for action in top_20_actions]
+                eligible_children = [
+                    child for child in top_20_children if child.num_visits < threshold
+                ]
+                return random.choice(eligible_children)
+        else:
+            return best_child
 
 
 class BatchTree:
@@ -193,7 +217,30 @@ class BatchTree:
 
             while node.expanded:
                 mean_q = node.mean_q(parent_q)
-                best_child = node.best_child(min_max_stats[i], mean_q)
+                if (
+                    node == self.roots[i]
+                ):  # the forced exploration only works on the roots kids' layer.
+                    threshold = math.ceil(
+                        3
+                        * self.config.num_simulations
+                        / np.sum(node.info["action_mask"])
+                    )
+                    count = sum(
+                        1
+                        for child in node.children.values()
+                        if child.num_visits >= threshold
+                    )
+                    if count >= math.ceil(
+                        0.2 * np.sum(node.info["action_mask"])
+                    ):  # the forced exlpration only works if the 20% nodes are rarely visited.
+                        forced_exploration = False
+                    else:
+                        forced_exploration = True
+                else:
+                    forced_exploration = False
+                best_child = node.best_child(
+                    min_max_stats[i], mean_q, forced_exploration
+                )
                 best_child.parent_traversed = node
                 if (
                     best_child.expanded
@@ -339,14 +386,16 @@ class MCTS:
 
                 root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                 index = roots.roots[0].info["episode_steps"]
-                if simulation_index == self.config.num_simulations - 1 and index == 0:
+                # plotting the tree when the agent finishes the simulation in the roots layer.
+                if simulation_index == self.config.num_simulations - 1:
                     plot_tree(
                         roots.roots[0],
                         leaf_nodes[0],
                         values[0],
                         min_max_stats[0],
                         output_file=os.path.join(
-                            root_path, f"evaluation/tree_{index}.gv"
+                            root_path, 
+                            f"evaluation/{os.path.basename(self.config.model_dir)}/{os.path.basename(self.config.model_path)}/tree_{index}.gv"
                         ),
                     )
 

@@ -21,7 +21,9 @@ class SwapPlacement(Placement):
     ):
         super().__init__(log_dir, simulator, render_mode, num_target_blocks)
         self.prev_actions = []
-        self.cheat_trajectory = self.cheat(file_path=os.path.join(self.data_dir, "optimized.place"))
+        self.cheat_trajectory = self.cheat(
+            file_path=os.path.join(self.data_dir, "optimized.place")
+        )
 
         # state and action space defination
         self.board_image = np.zeros((2, self.width, self.height), dtype=int)
@@ -92,7 +94,7 @@ class SwapPlacement(Placement):
         wirelength = 0
         truncated = False
 
-        if (self.num_step_episode == self.episode_step_limit - 1):
+        if self.num_step_episode == self.episode_step_limit - 1:
             done = True
             self.num_episode += 1
             if self.simulator:
@@ -101,7 +103,7 @@ class SwapPlacement(Placement):
                 )
             else:
                 (wire_term, critical_path_delay, wirelength) = (0, 0, 0)
-        
+
         self.cumulative_reward += 1**self.num_step_episode * reward
         self.num_step += 1
         self.num_step_episode += 1
@@ -117,7 +119,7 @@ class SwapPlacement(Placement):
             "num_episode": self.num_episode,
             "action_mask": action_mask,
         }
-        
+
         return (
             {
                 "board_image": board_image,
@@ -134,10 +136,12 @@ class SwapPlacement(Placement):
         self.num_step_episode = 0
         self.cumulative_reward = 0
         self.prev_actions = []
-        self.board_image, self.place_infos, self.place_coords = self._place_initial_blocks(
+        self.board_image, self.place_infos, self.place_coords = (
+            self._place_initial_blocks(
                 optimized_file=os.path.join(self.data_dir, "optimized.place")
             )
-        
+        )
+
         hpwl = self.calculate_hpwl()
 
         if self.simulator:
@@ -147,7 +151,6 @@ class SwapPlacement(Placement):
         else:
             (wire_term, critical_path_delay, wirelength) = (0, 0, 0)
 
-        
         infos = {
             "placed_block": None,
             "hpwl": hpwl,
@@ -166,9 +169,7 @@ class SwapPlacement(Placement):
 
     def get_mask(self, block_index=None):
         if block_index is None:
-            block_index = self.place_order[
-                self.num_step_episode % self.num_blocks
-            ]
+            block_index = self.place_order[self.num_step_episode % self.num_blocks]
 
         block_type = self.blocks_list.loc[self.blocks_list["index"] == block_index][
             "type"
@@ -179,12 +180,13 @@ class SwapPlacement(Placement):
             if i in self.place_order:
                 pass
             elif (
+                i in self.place_order and position[0] * self.width + position[1]
+            ) in self.prev_actions:  # the target blocks that have been placed should not be able to swap.
+                valid_positions.remove(position[0] * self.width + position[1])
+            elif (
                 i not in self.place_order
                 and (position[0] * self.width + position[1]) in valid_positions
-            ):
-                valid_positions.remove(position[0] * self.width + position[1])
-            
-            if (position[0] * self.width + position[1]) in self.prev_actions:
+            ):  # the non-placed blocks, or the blocks besides the target block, should not be able to swap.
                 valid_positions.remove(position[0] * self.width + position[1])
 
         action_mask = np.zeros((self.height * self.width), dtype=int)
@@ -198,15 +200,17 @@ class SwapPlacement(Placement):
             for index, line in enumerate(file.readlines()):
                 if 60 >= index >= 5:
                     line_split = line.strip().split()
-                    coord = trans_coordinate([int(line_split[1]), int(line_split[2])], 11, "cs")
+                    coord = trans_coordinate(
+                        [int(line_split[1]), int(line_split[2])], 11, "cs"
+                    )
                     optimized_action.append(coord[0] * 11 + coord[1])
-        
+
         return optimized_action
 
     def hpwl_diff_reward(self, last_hpwl, hpwl):
-        reward = (last_hpwl - hpwl)/10
+        reward = (last_hpwl - hpwl) / 10
         return reward
-    
+
     def _get_observation(self, block_index, coord_x, coord_y):
 
         current_block_coord_x = self.place_coords[block_index][0]
@@ -269,9 +273,7 @@ class SwapPlacement(Placement):
     def _place_initial_blocks(self, optimized_file, seed=0):
         """CXB experiment"""
         place_coords = np.full((len(self.blocks_list), 2), -1)
-        board_image = np.zeros(
-            self.observation_space["board_image"].shape, dtype=float
-        )
+        board_image = np.zeros(self.observation_space["board_image"].shape, dtype=float)
         place_infos = np.full(
             self.observation_space["place_infos"].shape, -1, dtype=int
         )
@@ -324,10 +326,11 @@ class SwapPlacement(Placement):
             swappable_positions[1].append(i % self.width)
 
         # random place the target blocks
-        # np.random.seed(seed)
-        valid_position = self.get_mask()
+        np.random.seed(
+            seed
+        )  # if comment, the initial placement will keep changing in each episodes.
         for block_index in self.place_order:
-            random_index = np.random.choice(np.where(valid_position == 1)[0])
+            random_index = np.random.choice(valid_positions)
             x, y = random_index // self.width, random_index % self.width
 
             place_coords[block_index] = [x, y]
@@ -361,7 +364,7 @@ class SwapPlacement(Placement):
                 0 if type == "clb" else 1,
             ]
 
-            valid_position[random_index] = 0
+            valid_positions.remove(random_index)
         board_image[2, swappable_positions[0], swappable_positions[1]] = 1
         # print(self.calculate_hpwl())
         # print(self.calculate_hpwl())
