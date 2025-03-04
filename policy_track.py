@@ -31,7 +31,9 @@ def policy_track(args, config, model):
 
     evaulation_stats_all = {}  # Accumulate evaluation stats
     for i, test_worker in enumerate(test_workers):
-        test_stats, evaulation_stats_all = ray.get(test_worker.get_stats.remote())
+        test_stats, evaulation_stats_all, best_found = ray.get(
+            test_worker.get_stats.remote()
+        )
         add_logs(test_stats, evaulation_stats_all)
 
     stats = {}
@@ -48,6 +50,9 @@ def policy_track(args, config, model):
         # print(stats)
         reward_trajectory.append(evaulation_stats_all["reward"][i])
     print(f"action:{action_trajectory}, reward:{reward_trajectory}")
+    print(
+        f"the best hpwl is: {best_found['hpwl']}, the best reward is: {best_found['reward']}"
+    )
 
     for worker in test_workers:
         ray.kill(worker)
@@ -66,7 +71,8 @@ if __name__ == "__main__":
     parser.add_argument("--model_path", default=None)
     parser.add_argument(
         "--model_dir",
-        default="/home/swang848/efficientalphazero/results/Swap-v0_24022025_1328_59",
+        # default="/home/swang848/efficientalphazero/results/Swap-v0_24022025_1328_59"
+        default="/home/swang848/efficientalphazero/results/Swap-v0_02032025_2138_59",
     )
     parser.add_argument("--device_workers", default="cuda", type=str)
     parser.add_argument("--device_trainer", default="cuda", type=str)

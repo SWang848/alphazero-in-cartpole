@@ -25,6 +25,8 @@ class SharedStorage:
         self.wandb_log = {}
         self.test_train_step = -1
         self.workers_finished = 0
+        
+        self.best_found = {"hpwl":float("inf"), "reward":None, "state":None}
 
     def set_start_signal(self):
         self.start = True
@@ -68,3 +70,9 @@ class SharedStorage:
         logs = self.rollout_worker_log
         self.rollout_worker_log = {}
         return logs
+    
+    def set_best_found(self, best_found):
+        self.best_found = best_found
+        
+    def get_best_found(self):
+        return self.best_found

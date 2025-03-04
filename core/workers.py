@@ -79,7 +79,7 @@ class MCTSWorker:
             )
 
             windows = deepcopy(mcts_windows)
-            root_visit_dists, root_values = mcts.search(
+            root_visit_dists, root_values, best_found = mcts.search(
                 roots, windows
             )  # Do MCTS search
 
@@ -164,7 +164,7 @@ class MCTSWorker:
             )  # Move the tree roots to the new nodes of actions taken
 
         roots.clear()
-        return transition_buffers
+        return transition_buffers, best_found
 
 
 @ray.remote
@@ -209,16 +209,24 @@ class RolloutWorker(MCTSWorker):
             self.model.set_weights(model_weights)
 
             # Collect data
-            transition_buffers = []
-            while len(transition_buffers) < self.config.min_num_episodes_per_worker:
-                transition_buffers.extend(self.collect())
+            whole_transition_buffers = []
+            while (
+                len(whole_transition_buffers) < self.config.min_num_episodes_per_worker
+            ):
+                transition_buffers, best_found = self.collect()
+                current_best_found = ray.get(self.storage.get_best_found.remote())
+                if current_best_found["hpwl"] > best_found["hpwl"]:
+                    self.storage.set_best_found.remote(best_found)
+                whole_transition_buffers.extend(transition_buffers)
 
             # Add episode data to replay buffer and stats to storage
-            stats = TransitionBuffer.compute_stats_buffers(transition_buffers)
-            wandb_stats = TransitionBuffer.compute_wandb_buffers(transition_buffers)
+            stats = TransitionBuffer.compute_stats_buffers(whole_transition_buffers)
+            wandb_stats = TransitionBuffer.compute_wandb_buffers(
+                whole_transition_buffers
+            )
             self.storage.add_wandb_logs.remote(wandb_stats)
             self.storage.add_rollout_worker_logs.remote(stats)
-            self.replay_buffer.add.remote(transition_buffers)
+            self.replay_buffer.add.remote(whole_transition_buffers)
 
             collect_update_step = update_step
             self.storage.incr_workers_finished.remote()
@@ -239,15 +247,19 @@ class TestWorker(MCTSWorker):
 
         self.stats = None
         self.evaluation_stats = None
+        self.best_found = {"hpwl": float("inf"), "reward": None, "state": None}
 
     def run(self, model_weights, num_episodes):
-        transition_buffers = []
+        whole_transition_buffers = []
 
         self.model.set_weights(model_weights)
 
         # Collect data
-        while len(transition_buffers) < num_episodes:
-            transition_buffers.extend(self.collect())
+        while len(whole_transition_buffers) < num_episodes:
+            transition_buffers, best_found = self.collect()
+            if best_found["hpwl"] < self.best_found["hpwl"]:
+                self.best_found = best_found
+            whole_transition_buffers.extend(transition_buffers)
 
         # Compute and store stats
         self.stats = TransitionBuffer.compute_stats_buffers(transition_buffers)
@@ -256,7 +268,7 @@ class TestWorker(MCTSWorker):
         )
 
     def get_stats(self):
-        return self.stats, self.evaluation_stats
+        return self.stats, self.evaluation_stats, self.best_found
 
 
 @ray.remote

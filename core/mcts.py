@@ -119,15 +119,16 @@ class Node:
         value_score = self.child_values(min_max_stats, mean_q)
         return value_score + prior_score
 
-    # def best_action(self, min_max_stats: MinMaxStats, mean_q):
-    #     score = self.puct_scores(min_max_stats, mean_q)
-    #     masked_score = np.where(self.info["action_mask"], score, -np.inf)
-    #     # masked_score = np.where(self.child_priors != 0, score, -np.inf)
-    #     max_val = np.max(masked_score)
-    #     action = np.random.choice(np.argwhere(masked_score == max_val).flatten())
-    #     return action
+    def best_action(self, min_max_stats: MinMaxStats, mean_q):
+        score = self.puct_scores(min_max_stats, mean_q)
+        masked_score = np.where(self.info["action_mask"], score, -np.inf)
+        # masked_score = np.where(self.child_priors != 0, score, -np.inf)
+        max_val = np.max(masked_score)
+        action = np.random.choice(np.argwhere(masked_score == max_val).flatten())
+        return action
 
     def best_child(self, min_max_stats, mean_q, forced_exploration=False):
+        return self.children[self.best_action(min_max_stats, mean_q)]
         score = self.puct_scores(min_max_stats, mean_q)
         masked_score = np.where(self.info["action_mask"], score, -np.inf)
         sorted_desc_score = np.argsort(masked_score)[::-1]
@@ -329,6 +330,7 @@ class MCTS:
         # Do one step of Batch MCTS
         min_max_stats = [MinMaxStats() for _ in range(roots.root_num)]
         self.env.reset()
+        best_found = {"hpwl": float("inf"), "reward": None, "state": None}
         for simulation_index in range(self.config.num_simulations):
             windows = deepcopy(mcts_windows)
             trajectories = roots.traverse(windows, min_max_stats)
@@ -358,6 +360,12 @@ class MCTS:
                 leaf_nodes.append(to_node)
                 dones.append(done)
                 infos.append(info)
+                if (
+                    info["hpwl"] < best_found["hpwl"]
+                ):  # record the best placement during the search.
+                    best_found["hpwl"] = info["hpwl"]
+                    best_found["reward"] = reward
+                    best_found["state"] = self.env.get_state()
 
             # Calculate policy logits and value predictions for expanded nodes
             priors, values = self.model.compute_priors_and_values(windows)
@@ -394,9 +402,9 @@ class MCTS:
                         values[0],
                         min_max_stats[0],
                         output_file=os.path.join(
-                            root_path, 
-                            f"evaluation/{os.path.basename(self.config.model_dir)}/{os.path.basename(self.config.model_path)}/tree_{index}.gv"
+                            root_path,
+                            f"evaluation/{os.path.basename(self.config.model_dir)}/{os.path.basename(self.config.model_path)}/tree_{index}.gv",
                         ),
                     )
 
-        return roots.get_distributions(), roots.get_values()
+        return roots.get_distributions(), roots.get_values(), best_found
