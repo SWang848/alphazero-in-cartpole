@@ -3,6 +3,7 @@ import os
 import ray
 import torch
 import random
+import numpy as np
 from datetime import datetime
 
 from config.place import Config
@@ -49,6 +50,7 @@ def policy_track(args, config, model):
         # print(f"step: {i}\n")
         # print(stats)
         reward_trajectory.append(evaulation_stats_all["reward"][i])
+    # np.savez(os.path.join(log_dir, "best_found.npz"), hpwl=best_found["hpwl"], place_infos=best_found["state"].place_infos)
     print(f"action:{action_trajectory}, reward:{reward_trajectory}")
     print(
         f"the best hpwl is: {best_found['hpwl']}, the best reward is: {best_found['reward']}"
@@ -98,6 +100,7 @@ if __name__ == "__main__":
     else:
         log_dir = os.path.join(os.getcwd(), args.results_dir, sub_dir)
 
+    os.makedirs(log_dir, exist_ok=True)
     config = Config(
         log_dir=log_dir,
         value_support_max=args.value_support_max,

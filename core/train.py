@@ -4,6 +4,7 @@ import time
 from statistics import mean, median
 
 import torch
+import numpy as np
 import ray
 import wandb
 
@@ -181,4 +182,6 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
     ray.wait(workers)
     print("Training finished!")
     torch.save(model.state_dict(), os.path.join(log_dir, f"model_latest.pt"))
+    best_found = ray.get(storage.get_best_found.remote())
+    np.savez(os.path.join(log_dir, "best_found.npz"), hpwl=best_found["hpwl"], place_infos=best_found["state"].place_infos)
     ray.shutdown()
