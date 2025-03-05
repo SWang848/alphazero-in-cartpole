@@ -326,9 +326,9 @@ class SwapPlacement(Placement):
             swappable_positions[1].append(i % self.width)
 
         # random place the target blocks
-        np.random.seed(
-            seed
-        )  # if comment, the initial placement will keep changing in each episodes.
+        # np.random.seed(
+        #     seed
+        # )  # if comment, the initial placement will keep changing in each episodes.
         for block_index in self.place_order:
             random_index = np.random.choice(valid_positions)
             x, y = random_index // self.width, random_index % self.width
