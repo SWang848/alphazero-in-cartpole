@@ -11,6 +11,7 @@ class Config(BaseConfig):
     def __init__(
         self,
         num_target_blocks: int = 30,
+        non_fixed_init: bool = False,
         training_steps: int = 15,
         pretrain_steps: int = 0,
         model_broadcast_interval: int = 1,
@@ -80,6 +81,7 @@ class Config(BaseConfig):
         # rewrote by user agruments in the main.py 
         self.log_dir = log_dir
         self.num_target_blocks = num_target_blocks
+        self.non_fixed_init = non_fixed_init
 
     def init_model(self, device, amp):
         obs_shape = (self.obs_shape[0] * self.frame_stack,) + self.obs_shape[1:]
@@ -89,7 +91,7 @@ class Config(BaseConfig):
         model.to(device)
         return model
 
-    def env_creator(self, simulator=False, log_dir=None, num_target_blocks=30):
+    def env_creator(self, simulator=False, log_dir=None, num_target_blocks=30, non_fixed_init=False):
         if log_dir is None:
             log_dir = self.log_dir
-        return gym.make("Swap-v0", log_dir=log_dir, simulator=simulator, num_target_blocks=num_target_blocks)
+        return gym.make("Swap-v0", log_dir=log_dir, simulator=simulator, num_target_blocks=num_target_blocks, non_fixed_init=non_fixed_init)

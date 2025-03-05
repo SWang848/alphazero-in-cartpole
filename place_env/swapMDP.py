@@ -17,13 +17,14 @@ import pygame
 class SwapPlacement(Placement):
 
     def __init__(
-        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30
+        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30, non_fixed_init=False
     ):
         super().__init__(log_dir, simulator, render_mode, num_target_blocks)
         self.prev_actions = []
         self.cheat_trajectory = self.cheat(
             file_path=os.path.join(self.data_dir, "optimized.place")
         )
+        self.non_fixed_init = non_fixed_init
 
         # state and action space defination
         self.board_image = np.zeros((2, self.width, self.height), dtype=int)
@@ -138,7 +139,7 @@ class SwapPlacement(Placement):
         self.prev_actions = []
         self.board_image, self.place_infos, self.place_coords = (
             self._place_initial_blocks(
-                optimized_file=os.path.join(self.data_dir, "optimized.place")
+                optimized_file=os.path.join(self.data_dir, "optimized.place"), non_fixed_init=self.non_fixed_init
             )
         )
 
@@ -270,7 +271,7 @@ class SwapPlacement(Placement):
 
         return self.board_image.copy(), self.place_infos.copy()
 
-    def _place_initial_blocks(self, optimized_file, seed=0):
+    def _place_initial_blocks(self, optimized_file, non_fixed_init=False, seed=0):
         """CXB experiment"""
         place_coords = np.full((len(self.blocks_list), 2), -1)
         board_image = np.zeros(self.observation_space["board_image"].shape, dtype=float)
@@ -325,10 +326,13 @@ class SwapPlacement(Placement):
             swappable_positions[0].append(i // self.width)
             swappable_positions[1].append(i % self.width)
 
-        # random place the target blocks
-        # np.random.seed(
-        #     seed
-        # )  # if comment, the initial placement will keep changing in each episodes.
+        if non_fixed_init: # the initial placement will be changed in each episodes starts.
+            pass
+        else:
+            np.random.seed(
+                seed
+            )  
+            
         for block_index in self.place_order:
             random_index = np.random.choice(valid_positions)
             x, y = random_index // self.width, random_index % self.width
