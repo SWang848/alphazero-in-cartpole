@@ -43,6 +43,9 @@ class Config(BaseConfig):
         value_support_max: int = 0,
         value_support_delta: int = 1,
         value_transform: bool = True,
+        forced_exploration: bool = True,
+        k: float = 2.0,
+        percentage: float = 0.3,
         log_dir: str = None,
     ):
         super().__init__(
@@ -77,6 +80,9 @@ class Config(BaseConfig):
             value_support_max,
             value_support_delta,
             value_transform,
+            forced_exploration,
+            k,
+            percentage
         )
         # rewrote by user agruments in the main.py 
         self.log_dir = log_dir
