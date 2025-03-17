@@ -268,6 +268,10 @@ class RolloutWorker(MCTSWorker):
                 transition_buffers, best_found = self.collect()
                 if episode_best_found["hpwl"] > best_found["hpwl"]:
                     episode_best_found = best_found
+                
+                # set the global best found
+                if ray.get(self.storage.get_best_found.remote())["hpwl"] > best_found["hpwl"]:
+                    self.storage.set_best_found.remote(best_found)
                 whole_transition_buffers.extend(transition_buffers)
 
             # Add episode data to replay buffer and stats to storage

@@ -1,12 +1,16 @@
 #!bin/bash
 
 # mcts script
-for c_init in 3 4; do
-    for lr in 1e-3 1e-4; do
-        for seed in 0 10 100; do
-            sbatch CC_script.sh $c_init $lr $seed
-        done
-    done
+# for c_init in 3 4; do
+#     for lr in 1e-3 1e-4; do
+#         for seed in 0 10 100; do
+#             sbatch CC_script.sh $c_init $lr $seed
+#         done
+#     done
+# done
+
+for seed in 12 0 8764 723 529; do
+    sbatch CC_script.sh $seed
 done
 
 # ppo script
