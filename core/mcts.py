@@ -369,6 +369,7 @@ class MCTS:
             priors, values = self.model.compute_priors_and_values(windows)
 
             debug = self.config.debug
+            plot = True
             # if debug:
             #     from core.util import plot_tree
             #     import os
@@ -386,23 +387,23 @@ class MCTS:
             roots.backpropagate(
                 leaf_nodes, windows, values, priors, dones, infos, min_max_stats
             )
-            if debug:
+            if debug and plot:
                 from core.util import plot_tree
                 import os
 
                 root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                 index = roots.roots[0].info["episode_steps"]
                 # plotting the tree when the agent finishes the simulation in the roots layer.
-                # if simulation_index == self.config.num_simulations - 1:
-                #     plot_tree(
-                #         roots.roots[0],
-                #         leaf_nodes[0],
-                #         values[0],
-                #         min_max_stats[0],
-                #         output_file=os.path.join(
-                #             root_path,
-                #             f"evaluation/{os.path.basename(self.config.model_dir)}/{os.path.basename(self.config.model_path)}/tree_{index}.gv",
-                #         ),
-                #     )
+                if simulation_index == self.config.num_simulations - 1:
+                    plot_tree(
+                        roots.roots[0],
+                        leaf_nodes[0],
+                        values[0],
+                        min_max_stats[0],
+                        output_file=os.path.join(
+                            root_path,
+                            f"evaluation/{os.path.basename(self.config.model_dir)}/{os.path.basename(self.config.model_path)}/tree_{index}.gv",
+                        ),
+                    )
 
         return roots.get_distributions(), roots.get_values(), best_found

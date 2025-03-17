@@ -253,16 +253,18 @@ class TransitionBuffer:
         return stats
 
     @staticmethod
-    def compute_wandb_buffers(buffers: List["TransitionBuffer"]):
+    def compute_wandb_buffers(buffers: List["TransitionBuffer"], episode_best_found: int):
         stats = {
             "end_of_episode_rewards": [],
             "end_of_episode_wirelength": [],
             "end_of_episode_hpwl": [],
+            "best_found_of_episode_hpwl": [],
         }
         for buffer in buffers:
             stats["end_of_episode_hpwl"].append(buffer.infos[-1]["hpwl"])
             stats["end_of_episode_rewards"].append(buffer.rewards[-1])
             stats["end_of_episode_wirelength"].append(buffer.infos[-1]["wirelength"])
+        stats["best_found_of_episode_hpwl"].append(episode_best_found)
         return stats
 
     @staticmethod

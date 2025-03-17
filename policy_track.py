@@ -75,7 +75,9 @@ if __name__ == "__main__":
         "--model_dir",
         # default="/home/swang848/efficientalphazero/results/Swap-v0_24022025_1328_59"
         # default="/home/swang848/efficientalphazero/results/Swap-v0_02032025_2138_59",
-        default="/home/swang848/efficientalphazero/results/Swap-v0_05032025_1344_59"
+        # default="/home/swang848/efficientalphazero/results/Swap-v0_05032025_1344_59",
+        # default="/home/swang848/efficientalphazero/results/Swap-v0_10032025_1656_59",
+        default="/home/swang848/efficientalphazero/results/non_fixed_init_longrun"
     )
     parser.add_argument("--device_workers", default="cuda", type=str)
     parser.add_argument("--device_trainer", default="cuda", type=str)
@@ -84,12 +86,15 @@ if __name__ == "__main__":
     parser.add_argument("--seed", default=0, type=int)
     parser.add_argument("--non_fixed_init", action="store_true")
     parser.add_argument("--num_target_blocks", default=15, type=int)
-    parser.add_argument("--c_init", default=3, type=float)
-    parser.add_argument("--num_simulations", default=100, type=int)
+    parser.add_argument("--c_init", default=2.5, type=float)
+    parser.add_argument("--num_simulations", default=150, type=int)
     parser.add_argument("--num_envs_per_worker", default=1, type=int)
     parser.add_argument("--value_support_min", default=-10, type=int)
     parser.add_argument("--value_support_max", default=0, type=int)
     parser.add_argument("--value_support_delta", default=1, type=int)
+    parser.add_argument("--forced_exploration", action="store_true")
+    parser.add_argument("--k", default=2.0, type=float)
+    parser.add_argument("--percentage", default=0.3, type=float)
     args = parser.parse_args()
 
     sub_dir = datetime.now().strftime("%d%m%Y_%H%M")

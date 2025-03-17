@@ -158,6 +158,7 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
                     "rollout/avg_end_of_episode_wirelength": mean(
                         wandb_logs["end_of_episode_wirelength"]
                     ),
+                    "rollout/best_found_of_episode_hpwl": min(wandb_logs["best_found_of_episode_hpwl"]),
                     "train/total_loss": mean(total_losses),
                     "train/policy_loss": mean(policy_losses),
                     "train/value_loss": mean(value_losses),
@@ -183,5 +184,5 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
     print("Training finished!")
     torch.save(model.state_dict(), os.path.join(log_dir, f"model_latest.pt"))
     best_found = ray.get(storage.get_best_found.remote())
-    np.savez(os.path.join(log_dir, "best_found.npz"), hpwl=best_found["hpwl"], place_infos=best_found["state"].place_infos)
+    np.savez(os.path.join(log_dir, "best_found.npz"), hpwl=best_found["hpwl"], reward=best_found["reward"], place_infos=best_found["state"].place_infos)
     ray.shutdown()

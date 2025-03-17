@@ -13,6 +13,7 @@ from datetime import datetime
 from core.pretrain import pretrain
 from core.train import train
 from core.test import test
+from core.evaluate import evaluate
 from config.place import Config
 
 def set_seed(seed):
@@ -117,5 +118,7 @@ if __name__ == "__main__":
             test(args, config, model, log_dir)
         elif opr == "pretrain":
             pretrain(args, config, model, summary_writer, log_dir)
+        elif opr == "evaluation":
+            evaluate(args, config, model)
     
     print("Finished")

@@ -60,6 +60,7 @@ class MCTSWorker:
                 info=info,
             )
 
+        current_best_found = {"hpwl":float("inf"), "reward":None, "state":None}
         while not all(finished):
             # Prepare roots
             priors, values = self.model.compute_priors_and_values(
@@ -82,6 +83,8 @@ class MCTSWorker:
             root_visit_dists, root_values, best_found = mcts.search(
                 roots, windows
             )  # Do MCTS search
+            if current_best_found["hpwl"] > best_found["hpwl"]:
+                current_best_found = best_found
 
             # Execute action sampled from MCTS policy
             actions = []
@@ -164,8 +167,56 @@ class MCTSWorker:
             )  # Move the tree roots to the new nodes of actions taken
 
         roots.clear()
-        return transition_buffers, best_found
+        
+        return transition_buffers, current_best_found
+    
+    def evaluate(self):
+        roots = BatchTree(
+            self.num_envs, self.envs[0].action_space.n, self.config
+        )  # Prepare datastructures
+        mcts = MCTS(self.config, self.model)
+        mcts_windows = [
+            MCTSRollingWindow(self.config.obs_shape, self.config.frame_stack)
+            for _ in range(self.num_envs)
+        ]
 
+        for i, env in enumerate(
+            self.envs
+        ):  # Initialize rolling windows for frame stacking
+            obs, info = env.reset()
+            mcts_windows[i].add(
+                obs=obs["board_image"],
+                env_state=env.get_state(),
+                reward=None,
+                action=None,
+                info=info,
+            )
+
+        # Prepare roots
+        priors, values = self.model.compute_priors_and_values(
+            mcts_windows
+        )  # Compute priors and values for nodes to be expanded
+
+        noises = None  # Inject noise into priors if configured
+        if self.use_dirichlet:
+            noises = [
+                np.random.dirichlet(
+                    [self.config.root_dirichlet_alpha] * self.env_action_space.n
+                ).astype(np.float32)
+                for _ in range(self.num_envs)
+            ]
+        roots.prepare(
+            mcts_windows, self.config.root_exploration_fraction, priors, noises
+        )
+
+        windows = deepcopy(mcts_windows)
+        _, _, best_found = mcts.search(
+            roots, windows
+        )  # Do MCTS search
+
+        roots.clear()
+        return best_found
+        
 
 @ray.remote
 class RolloutWorker(MCTSWorker):
@@ -210,19 +261,19 @@ class RolloutWorker(MCTSWorker):
 
             # Collect data
             whole_transition_buffers = []
+            episode_best_found = {"hpwl":float("inf"), "reward":None, "state":None}
             while (
                 len(whole_transition_buffers) < self.config.min_num_episodes_per_worker
             ):
                 transition_buffers, best_found = self.collect()
-                current_best_found = ray.get(self.storage.get_best_found.remote())
-                if current_best_found["hpwl"] > best_found["hpwl"]:
-                    self.storage.set_best_found.remote(best_found)
+                if episode_best_found["hpwl"] > best_found["hpwl"]:
+                    episode_best_found = best_found
                 whole_transition_buffers.extend(transition_buffers)
 
             # Add episode data to replay buffer and stats to storage
             stats = TransitionBuffer.compute_stats_buffers(whole_transition_buffers)
             wandb_stats = TransitionBuffer.compute_wandb_buffers(
-                whole_transition_buffers
+                whole_transition_buffers, episode_best_found["hpwl"]
             )
             self.storage.add_wandb_logs.remote(wandb_stats)
             self.storage.add_rollout_worker_logs.remote(stats)
@@ -270,6 +321,32 @@ class TestWorker(MCTSWorker):
     def get_stats(self):
         return self.stats, self.evaluation_stats, self.best_found
 
+
+@ray.remote
+class EvaluateWorker(MCTSWorker):
+    def __init__(
+        self,
+        config: BaseConfig,
+        device: str,
+        amp: bool,
+        simulator: bool = False,
+    ):
+        num_envs = config.num_envs_per_worker
+        use_dirichlet = config.test_use_dirichlet
+        super().__init__(config, device, amp, num_envs, use_dirichlet, simulator)
+
+        self.stats = None
+        self.evaluation_stats = None
+        self.best_found = {"hpwl": float("inf"), "reward": None, "state": None}
+
+    def run(self, model_weights):
+        self.model.set_weights(model_weights)
+
+        # Evalute policy
+        self.best_found = self.evaluate()
+    
+    def get_stats(self):
+        return self.best_found
 
 @ray.remote
 class DemonstrationWorker:
