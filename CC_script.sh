@@ -30,6 +30,5 @@ wandb offline
 ray start --head --node-ip-address=$HEAD_NODE --port=$RAY_PORT --num-cpus=16 --num-gpus=1 --block &
 sleep 20
 
-PYTHONUNBUFFERED=1 python3 -u main.py --cc --wandb --amp --non_fixed_init --group_name c15b_forced_exploration_non_fixed_init --env Swap-v0 --seed $1 --num_rollout_workers 10 --num_cpus_per_worker 1.6 --num_envs_per_worker 30 --num_gpus_per_worker 0.1 --min_num_episodes_per_worker 30 --num_target_blocks 15 --num_simulations 150 --training_steps 80 --c_init 2.5 --lr 1e-2 --value_support_min -10 --value_support_max 0 --value_support_delta 1 --forced_exploration --k 2.0 --percentage 0.3
-
+PYTHONUNBUFFERED=1 python3 -u main.py --cc --wandb --amp  --group_name c15b_fixed_init --env Swap-v0 --seed $1 --num_rollout_workers 10 --num_cpus_per_worker 1.6 --num_envs_per_worker 30 --num_gpus_per_worker 0.1 --min_num_episodes_per_worker 30 --num_target_blocks 15 --num_simulations 150 --training_steps 80 --c_init 2.5 --lr 1e-2 --value_support_min -10 --value_support_max 0 --value_support_delta 1
 cp -r $results/* /home/shang8/scratch/alphazero-in-cartpole/results/
