@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=1
-#SBATCH --ntasks-per-node=16
-#SBATCH --mem=48G
+#SBATCH --ntasks-per-node=12
+#SBATCH --mem=60G
 #SBATCH --time=50:00:00
 #SBATCH --account=rrg-mtaylor3
 #SBATCH --output=/home/shang8/scratch/slurm_out/%A.out
@@ -27,8 +27,8 @@ module load cuda
 source /home/shang8/scratch/MCTS_env/bin/activate
 wandb offline
 
-ray start --head --node-ip-address=$HEAD_NODE --port=$RAY_PORT --num-cpus=16 --num-gpus=1 --block &
+ray start --head --node-ip-address=$HEAD_NODE --port=$RAY_PORT --num-cpus=12 --num-gpus=1 --block &
 sleep 20
 
-PYTHONUNBUFFERED=1 python3 -u main.py --cc --wandb --amp --non_fixed_init --group_name c15b_non_fixed_init --env Swap-v0 --seed $1 --num_rollout_workers 10 --num_cpus_per_worker 1.6 --num_envs_per_worker 30 --num_gpus_per_worker 0.1 --min_num_episodes_per_worker 30 --num_target_blocks 15 --num_simulations 150 --training_steps 80 --c_init 2.5 --lr 1e-2 --value_support_min -10 --value_support_max 0 --value_support_delta 1
+PYTHONUNBUFFERED=1 python3 -u main.py --cc --wandb --amp --non_fixed_init --group_name c15b_non_fixed_init --env Swap-v0 --seed $1 --num_rollout_workers 10 --num_cpus_per_worker 1.2 --num_envs_per_worker 30 --num_gpus_per_worker 0.1 --min_num_episodes_per_worker 30 --num_target_blocks 15 --num_simulations 150 --training_steps 80 --c_init 2.5 --lr 1e-2 --value_support_min -10 --value_support_max 0 --value_support_delta 1
 cp -r $results/* /home/shang8/scratch/alphazero-in-cartpole/results/
