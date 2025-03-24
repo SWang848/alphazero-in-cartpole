@@ -15,17 +15,11 @@ class MCTSWorker:
     def __init__(
         self,
         config: BaseConfig,
-        device: str,
-        amp: bool,
         num_envs: int,
-        use_dirichlet: bool,
         simulator: bool = False,
     ):
         self.config = config
-        self.model = self.config.init_model(device, amp)
-        self.model.eval()
         self.num_envs = num_envs
-        self.use_dirichlet = use_dirichlet
 
         self.envs = [
             config.env_creator(
@@ -40,7 +34,7 @@ class MCTSWorker:
         roots = BatchTree(
             self.num_envs, self.envs[0].action_space.n, self.config
         )  # Prepare datastructures
-        mcts = MCTS(self.config, self.model)
+        mcts = MCTS(self.config)
         transition_buffers = [TransitionBuffer() for _ in range(self.num_envs)]
         mcts_windows = [
             MCTSRollingWindow(self.config.obs_shape, self.config.frame_stack)
@@ -62,22 +56,7 @@ class MCTSWorker:
 
         current_best_found = {"hpwl":float("inf"), "reward":None, "state":None}
         while not all(finished):
-            # Prepare roots
-            priors, values = self.model.compute_priors_and_values(
-                mcts_windows
-            )  # Compute priors and values for nodes to be expanded
-
-            noises = None  # Inject noise into priors if configured
-            if self.use_dirichlet:
-                noises = [
-                    np.random.dirichlet(
-                        [self.config.root_dirichlet_alpha] * self.env_action_space.n
-                    ).astype(np.float32)
-                    for _ in range(self.num_envs)
-                ]
-            roots.prepare(
-                mcts_windows, self.config.root_exploration_fraction, priors, noises
-            )
+            roots.prepare(mcts_windows)
 
             windows = deepcopy(mcts_windows)
             root_visit_dists, root_values, best_found = mcts.search(
@@ -170,67 +149,17 @@ class MCTSWorker:
         
         return transition_buffers, current_best_found
     
-    def evaluate(self):
-        roots = BatchTree(
-            self.num_envs, self.envs[0].action_space.n, self.config
-        )  # Prepare datastructures
-        mcts = MCTS(self.config, self.model)
-        mcts_windows = [
-            MCTSRollingWindow(self.config.obs_shape, self.config.frame_stack)
-            for _ in range(self.num_envs)
-        ]
-
-        for i, env in enumerate(
-            self.envs
-        ):  # Initialize rolling windows for frame stacking
-            obs, info = env.reset()
-            mcts_windows[i].add(
-                obs=obs["board_image"],
-                env_state=env.get_state(),
-                reward=None,
-                action=None,
-                info=info,
-            )
-
-        # Prepare roots
-        priors, values = self.model.compute_priors_and_values(
-            mcts_windows
-        )  # Compute priors and values for nodes to be expanded
-
-        noises = None  # Inject noise into priors if configured
-        if self.use_dirichlet:
-            noises = [
-                np.random.dirichlet(
-                    [self.config.root_dirichlet_alpha] * self.env_action_space.n
-                ).astype(np.float32)
-                for _ in range(self.num_envs)
-            ]
-        roots.prepare(
-            mcts_windows, self.config.root_exploration_fraction, priors, noises
-        )
-
-        windows = deepcopy(mcts_windows)
-        _, _, best_found = mcts.search(
-            roots, windows
-        )  # Do MCTS search
-
-        roots.clear()
-        return best_found
-        
 
 @ray.remote
 class RolloutWorker(MCTSWorker):
     def __init__(
         self,
         config: BaseConfig,
-        device: str,
-        amp: bool,
         replay_buffer: ReplayBuffer,
         storage: SharedStorage,
     ):
         num_envs = config.num_envs_per_worker
-        use_dirichlet = config.use_dirichlet
-        super().__init__(config, device, amp, num_envs, use_dirichlet)
+        super().__init__(config, num_envs)
 
         self.replay_buffer = replay_buffer
         self.storage = storage
@@ -254,11 +183,6 @@ class RolloutWorker(MCTSWorker):
             if collect_update_step == update_step:
                 time.sleep(5)
                 continue
-
-            # Update weights
-            model_weights = ray.get(self.storage.get_weights.remote())
-            self.model.set_weights(model_weights)
-
             # Collect data
             whole_transition_buffers = []
             episode_best_found = {"hpwl":float("inf"), "reward":None, "state":None}

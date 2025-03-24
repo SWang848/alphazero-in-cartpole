@@ -14,7 +14,6 @@ class Node:
         self.parent_traversed = None
 
         self.reward = None
-        self.obs = None
         self.env_state = None
         self.info = None
         self.terminal = False
@@ -25,10 +24,7 @@ class Node:
 
         self.children = {}
 
-        self.child_priors = None
-
-    def expand(self, obs, reward, terminal, info, state, priors: np.ndarray):
-        self.obs = obs
+    def expand(self, reward, terminal, info, state):
         self.reward = reward
         self.terminal = terminal
         self.env_state = state
@@ -37,22 +33,10 @@ class Node:
         if terminal:
             return
 
-        self.child_priors = priors
         for i in range(self.num_actions):
             self.children[i] = Node(self.config, i, self.num_actions)
 
         self.expanded = True
-
-    def add_exploration_noise(self, noise, exploration_fraction):
-        self.child_priors = np.where(
-            self.info["action_mask"],
-            self.child_priors * (1 - exploration_fraction)
-            + noise * exploration_fraction,
-            0.0,
-        )
-        # self.child_priors = np.where(self.child_priors != 0,
-        #                              self.child_priors * (1 - exploration_fraction) + noise * exploration_fraction,
-        #                              self.child_priors)
 
     def child_number_visits(self):
         return np.array([child.num_visits for _, child in self.children.items()])
@@ -107,29 +91,23 @@ class Node:
     def get_child(self, action):
         return self.children[action]
 
-    def puct_scores(self, min_max_stats, mean_q=None):
-        # See: https://storage.googleapis.com/deepmind-media/DeepMind.com/Blog/alphazero-shedding-new-light-on-chess-shogi-and-go/alphazero_preprint.pdf
-        # p. 17, Section "Search"
-        c_base = self.config.c_base
-        c_init = self.config.c_init
-        c_term = np.log((1 + self.num_visits + c_base) / c_base) + c_init
-        visit_term = np.sqrt(self.num_visits) / (self.child_number_visits() + 1)
-
-        prior_score = c_term * visit_term * self.child_priors
+    def ucb_scores(self, min_max_stats, mean_q=None):
+        c_base = self.confg.c_base
+        
         value_score = self.child_values(min_max_stats, mean_q)
-        return value_score + prior_score
+        ucb_scores = value_score + c_base * np.sqrt(np.log(self.num_visits) / (self.child_number_visits() + 1e-8))
+        return ucb_scores
 
     def best_action(self, min_max_stats: MinMaxStats, mean_q):
-        score = self.puct_scores(min_max_stats, mean_q)
+        score = self.ucb_scores(min_max_stats, mean_q)
         masked_score = np.where(self.info["action_mask"], score, -np.inf)
-        # masked_score = np.where(self.child_priors != 0, score, -np.inf)
         max_val = np.max(masked_score)
         action = np.random.choice(np.argwhere(masked_score == max_val).flatten())
         return action
 
     def choose_child(self, min_max_stats, mean_q, **kwargs):
         # return self.children[self.best_action(min_max_stats, mean_q)]
-        score = self.puct_scores(min_max_stats, mean_q)
+        score = self.ucb_scores(min_max_stats, mean_q)
         masked_score = np.where(self.info["action_mask"], score, -np.inf)
         sorted_desc_score = np.argsort(masked_score)[::-1]
         sorted_desc_score = sorted_desc_score[
@@ -165,19 +143,15 @@ class BatchTree:
 
         self.node_hash_tables = [{} for _ in range(root_num)]
 
-    def prepare(self, mcts_windows, exploration_fraction, priors, noises=None):
+    def prepare(self, mcts_windows):
         for i in range(self.root_num):
-            prior = priors[i]
             state = mcts_windows[i].env_state
             root = self.roots[i]
             root.num_visits += 1
             info = mcts_windows[i].infos[0]
 
             if not root.expanded and not root.terminal:
-                root.expand(mcts_windows[i].obs, None, False, info, state, prior)
-            if noises is not None:
-                noise = noises[i]
-                root.add_exploration_noise(noise, exploration_fraction)
+                root.expand(mcts_windows[i].obs, None, False, info, state)
 
     def apply_actions(self, actions):
         for i in range(self.root_num):
@@ -256,21 +230,19 @@ class BatchTree:
         return trajectories
 
     def backpropagate(
-        self, leaf_nodes, mcts_windows, values, priors, terminals, infos, min_max_stats
+        self, leaf_nodes, mcts_windows, values, terminals, infos, min_max_stats
     ):
         for i in range(len(leaf_nodes)):
             node: Node = leaf_nodes[i]  # Take vals for current leaf_node
-            o = mcts_windows[i].latest_obs()
             reward = mcts_windows[i].rewards[0]
             state = mcts_windows[i].env_state
             value = values[i]
-            prior = priors[i]
             terminal = terminals[i]
             info = infos[i]
 
             # Expand the leaf node
             # If it's a terminal node, the `expand` call will return without expansion
-            node.expand(o, reward, terminal, info, state, prior)
+            node.expand(reward, terminal, info, state)
 
             # Check if node already exists
             # If yes, take it from the hash table
@@ -318,10 +290,8 @@ class MCTS:
     def __init__(
         self,
         config,
-        model,
     ):
         self.config = config
-        self.model = model
         self.env = config.env_creator(num_target_blocks=config.num_target_blocks)
 
     def search(self, roots, mcts_windows):
@@ -329,6 +299,7 @@ class MCTS:
         min_max_stats = [MinMaxStats() for _ in range(roots.root_num)]
         self.env.reset()
         best_found = {"hpwl": float("inf"), "reward": None, "state": None}
+        
         for simulation_index in range(self.config.num_simulations):
             windows = deepcopy(mcts_windows)
             trajectories = roots.traverse(windows, min_max_stats)
@@ -336,6 +307,8 @@ class MCTS:
             dones = []
             leaf_nodes = []
             infos = []
+            values = []
+
             for env_index in range(roots.root_num):
                 trajectory = trajectories[env_index]
                 if len(trajectory) == 1:
@@ -358,34 +331,18 @@ class MCTS:
                 leaf_nodes.append(to_node)
                 dones.append(done)
                 infos.append(info)
+                values.append(self.random_rollout(self.env, done))
                 if (
                     info["hpwl"] < best_found["hpwl"]
                 ):  # record the best placement during the search.
                     best_found["hpwl"] = info["hpwl"]
                     best_found["reward"] = reward
-                    best_found["state"] = self.env.get_state()
-
-            # Calculate policy logits and value predictions for expanded nodes
-            priors, values = self.model.compute_priors_and_values(windows)
-
+                    best_found["state"] = self.env.get_state()   
             debug = self.config.debug
             plot = True
-            # if debug:
-            #     from core.util import plot_tree
-            #     import os
-
-            #     root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            #     index = roots.roots[0].info["episode_steps"]
-            #     plot_tree(
-            #         roots.roots[0],
-            #         leaf_nodes[0],
-            #         float(round(values[0], 4)),
-            #         min_max_stats[0],
-            #         output_file=os.path.join(root_path, f"evaluation/tree_{index}.gv"),
-            #     )
 
             roots.backpropagate(
-                leaf_nodes, windows, values, priors, dones, infos, min_max_stats
+                leaf_nodes, windows, values, dones, infos, min_max_stats
             )
             if debug and plot:
                 from core.util import plot_tree
@@ -407,3 +364,25 @@ class MCTS:
                     )
 
         return roots.get_distributions(), roots.get_values(), best_found
+
+    def random_rollout(self, env, done):
+        if done:
+            return 0.0
+        
+        total_reward = 0
+        gamma = self.config.gamma
+        step = 0
+        
+        env_state = env.get_state()  # Save initial state
+        
+        while not done:
+            action_mask = env.get_mask()
+            valid_actions = np.where(action_mask)[0]
+            action = np.random.choice(valid_actions)
+            obs, reward, done, truncated, info = env.step(action)
+            
+            total_reward += (gamma ** step) * reward  # Apply discount correctly
+            step += 1
+        
+        env.set_state(env_state)  # Restore initial state
+        return total_reward
