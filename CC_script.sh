@@ -2,7 +2,7 @@
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=1
 #SBATCH --ntasks-per-node=14
-#SBATCH --mem=70G
+#SBATCH --mem=80G
 #SBATCH --time=72:00:00
 #SBATCH --account=rrg-mtaylor3
 #SBATCH --output=/home/shang8/scratch/slurm_out/%A.out
