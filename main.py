@@ -65,7 +65,7 @@ if __name__ == "__main__":
     set_seed(args.seed)
 
     sub_dir = datetime.now().strftime("%d%m%Y_%H%M")
-    sub_dir = f"{args.env}_{sub_dir}_{random.randint(10, 99)}"
+    sub_dir = f"{args.env}_{sub_dir}_{random.randint(0, 9999)}"
     # if program is run on CC, save logs to the local disk.
     if args.cc:
         log_dir = f"{os.environ['results']}/{sub_dir}"

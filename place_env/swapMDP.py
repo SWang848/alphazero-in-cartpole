@@ -82,13 +82,13 @@ class SwapPlacement(Placement):
         self.action = action
         self.prev_actions.append(self.action)
 
-        # last_hpwl = self.calculate_hpwl()
+        last_hpwl = self.calculate_hpwl()
         block_index = self.place_order[self.num_step_episode % self.num_blocks]
         board_image, place_infos = self._get_observation(block_index, x, y)
 
         hpwl = self.calculate_hpwl()
         reward = self.hpwl_reward(hpwl)
-        # reward = self.hpwl_diff_reward(last_hpwl, hpwl)
+        reward = self.hpwl_diff_reward(last_hpwl, hpwl)
         # if action == self.cheat_trajectory[self.num_step_episode]:
         #     reward = 0.0
         done = False
