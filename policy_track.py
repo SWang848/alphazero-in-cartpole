@@ -5,6 +5,7 @@ import torch
 import random
 import numpy as np
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 from config.place import Config
 from core.storage import add_logs
@@ -58,7 +59,8 @@ def policy_track(args, config, model):
 
     for worker in test_workers:
         ray.kill(worker)
-
+        
+    return best_found["hpwl"]
 
 if __name__ == "__main__":
     parser = ArgumentParser("MCTS Place, GO")
@@ -77,17 +79,20 @@ if __name__ == "__main__":
         # default="/home/swang848/efficientalphazero/results/Swap-v0_02032025_2138_59",
         # default="/home/swang848/efficientalphazero/results/Swap-v0_05032025_1344_59",
         # default="/home/swang848/efficientalphazero/results/Swap-v0_10032025_1656_59",
-        default="/home/swang848/efficientalphazero/results/non_fixed_init_longrun"
+        # default="/home/swang848/efficientalphazero/results/results_cc/Swap-v0_24032025_1809_93", #c15b_forced_exploration_fixed_init_2
+        # default="/home/swang848/efficientalphazero/results/results_cc/Swap-v0_24032025_1821_37"  #c15b_forced_exploration_non_fixed_init_2
+        # default="/home/swang848/efficientalphazero/results/results_cc/c15b_fixed_init_2"  #c15b_fixed_init_2
+        default="/home/swang848/efficientalphazero/results/results_cc/Swap-v0_25032025_0422_93" #c15b_non_fixed_init_2
     )
     parser.add_argument("--device_workers", default="cuda", type=str)
     parser.add_argument("--device_trainer", default="cuda", type=str)
     parser.add_argument("--amp", action="store_true")
     parser.add_argument("--debug", action="store_true")
-    parser.add_argument("--seed", default=0, type=int)
+    parser.add_argument("--seed", default=529, type=int)
     parser.add_argument("--non_fixed_init", action="store_true")
     parser.add_argument("--num_target_blocks", default=15, type=int)
     parser.add_argument("--c_init", default=2.5, type=float)
-    parser.add_argument("--num_simulations", default=150, type=int)
+    parser.add_argument("--num_simulations", default=120, type=int)
     parser.add_argument("--num_envs_per_worker", default=1, type=int)
     parser.add_argument("--value_support_min", default=-10, type=int)
     parser.add_argument("--value_support_max", default=0, type=int)
@@ -139,15 +144,45 @@ if __name__ == "__main__":
     model = config.init_model(args.device_trainer, args.amp)  # Create (and load) model
 
     ray.init(log_to_driver=False)
-    model_paths = [
+    # sort model paths by training steps in ascending order
+    model_paths = sorted([
         os.path.join(args.model_dir, f)
         for f in os.listdir(args.model_dir)
-        if f.endswith(".pt")
-    ]
+        if f.endswith(".pt") and "best" not in f and "latest" not in f
+    ], key=lambda x: int(os.path.basename(x).split('.')[0].split('_')[-1]), reverse=False)
+    latest_model = os.path.join(args.model_dir, "model_latest.pt")
+    if os.path.exists(latest_model):
+        model_paths.append(latest_model)
+    best_hpwl_list = []
     for model_path in model_paths:
         setattr(config, "model_path", model_path)
         model.load_state_dict(torch.load(model_path))
-        policy_track(args, config, model)
+        best_hpwl = policy_track(args, config, model)
+        best_hpwl_list.append(best_hpwl)
 
+    model_steps = [str(os.path.basename(path).split('.')[0].split('_')[-1]) for path in model_paths]
+    
+    plt.figure(figsize=(12, 6))
+    plt.plot(model_steps, best_hpwl_list, marker='o', linestyle='-', linewidth=2, markersize=8)
+    
+    plt.title('evaluation/best_found_hpwl_of_episode', fontsize=14)
+    plt.xlabel('Training Steps', fontsize=12)
+    plt.ylabel('Best HPWL', fontsize=12)
+    
+    plt.xticks(rotation=45)
+    
+    for i, hpwl in enumerate(best_hpwl_list):
+        plt.annotate(f'{hpwl:.2f}', 
+                    (model_steps[i], hpwl),
+                    textcoords="offset points",
+                    xytext=(0,5),
+                    ha='center')
+    
+    plt.tight_layout()
+
+    plot_path = os.path.join(args.model_dir, 'c15b_non_fixed_init_2.png')
+    plt.savefig(plot_path)
+    plt.close()
+    
     ray.shutdown()
     print("Finished!")

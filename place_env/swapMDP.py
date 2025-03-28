@@ -17,9 +17,9 @@ import pygame
 class SwapPlacement(Placement):
 
     def __init__(
-        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30, non_fixed_init=False
+        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30, non_fixed_init=False, seed=0
     ):
-        super().__init__(log_dir, simulator, render_mode, num_target_blocks)
+        super().__init__(log_dir, simulator, render_mode, num_target_blocks, seed)
         self.prev_actions = []
         self.cheat_trajectory = self.cheat(
             file_path=os.path.join(self.data_dir, "optimized.place")
@@ -88,7 +88,7 @@ class SwapPlacement(Placement):
 
         hpwl = self.calculate_hpwl()
         reward = self.hpwl_reward(hpwl)
-        reward = self.hpwl_diff_reward(last_hpwl, hpwl)
+        # reward = self.hpwl_diff_reward(last_hpwl, hpwl)
         # if action == self.cheat_trajectory[self.num_step_episode]:
         #     reward = 0.0
         done = False
@@ -139,7 +139,7 @@ class SwapPlacement(Placement):
         self.prev_actions = []
         self.board_image, self.place_infos, self.place_coords = (
             self._place_initial_blocks(
-                optimized_file=os.path.join(self.data_dir, "optimized.place"), non_fixed_init=self.non_fixed_init
+                optimized_file=os.path.join(self.data_dir, "optimized.place"), non_fixed_init=self.non_fixed_init, seed=self.seed
             )
         )
 
@@ -331,7 +331,7 @@ class SwapPlacement(Placement):
         else:
             np.random.seed(
                 seed
-            )  
+            )
             
         for block_index in self.place_order:
             random_index = np.random.choice(valid_positions)

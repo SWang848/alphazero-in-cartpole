@@ -30,13 +30,14 @@ def test(args, config, model, log_dir):
     test_stats_all = {}  # Accumulate test stats
     evaulation_stats_all = {} # Accumulate evaluation stats
     for i, test_worker in enumerate(test_workers):
-        test_stats, evaulation_stats_all = ray.get(test_worker.get_stats.remote())
+        test_stats, evaulation_stats_all, best_found = ray.get(test_worker.get_stats.remote())
         add_logs(test_stats, test_stats_all)
         add_logs(test_stats, evaulation_stats_all)
 
-    
+
     stats = {}
     action_trajectory = []
+    print(f"best found hpwl: {best_found['hpwl']}")
     for i in range(len(evaulation_stats_all["action"])):
         stats["action"] = evaulation_stats_all["action"][i]
         stats["reward"] = evaulation_stats_all["reward"][i]
@@ -44,8 +45,8 @@ def test(args, config, model, log_dir):
         stats["mcts_policy"] = evaulation_stats_all["mcts_policy"][i]
         stats["value_target"] = evaulation_stats_all["value_target"][i]
         action_trajectory.append(evaulation_stats_all["action"][i])
-        print(f"step: {i}\n")
-        print(stats)
+        # print(f"step: {i}\n")
+        # print(stats)
     # print(action_trajectory)
         
     accum_stats = {}  # Calculate stats
