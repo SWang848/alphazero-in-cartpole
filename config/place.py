@@ -97,7 +97,7 @@ class Config(BaseConfig):
         model.to(device)
         return model
 
-    def env_creator(self, simulator=False, log_dir=None, num_target_blocks=30, non_fixed_init=False, seed=0):
+    def env_creator(self, simulator=False, log_dir=None, num_target_blocks=30):
         if log_dir is None:
             log_dir = self.log_dir
-        return gym.make("Swap-v0", log_dir=log_dir, simulator=simulator, num_target_blocks=num_target_blocks, non_fixed_init=non_fixed_init, seed=seed)
+        return gym.make("Swap-v0", log_dir=log_dir, simulator=simulator, num_target_blocks=num_target_blocks)

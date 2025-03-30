@@ -32,7 +32,6 @@ class MCTSWorker:
             config.env_creator(
                 simulator=simulator, 
                 num_target_blocks=config.num_target_blocks, 
-                non_fixed_init=config.non_fixed_init
             )
             for _ in range(self.num_envs)
         ]
