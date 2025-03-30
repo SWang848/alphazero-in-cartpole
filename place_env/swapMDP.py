@@ -1,12 +1,7 @@
 import os
-import re
-import shutil
-import gym
-import random
 from gym import spaces
-from copy import deepcopy
 
-from core.util import fill_place_file, trans_coordinate
+from core.util import trans_coordinate
 from core.preprocess import Preprocess
 from place_env.placement import Placement
 
@@ -17,15 +12,13 @@ import pygame
 class SwapPlacement(Placement):
 
     def __init__(
-        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30, non_fixed_init=False, seed=0
+        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30
     ):
-        super().__init__(log_dir, simulator, render_mode, num_target_blocks, seed)
+        super().__init__(log_dir, simulator, render_mode, num_target_blocks)
         self.prev_actions = []
         self.cheat_trajectory = self.cheat(
             file_path=os.path.join(self.data_dir, "optimized.place")
         )
-        self.non_fixed_init = non_fixed_init
-
         # state and action space defination
         self.board_image = np.zeros((2, self.width, self.height), dtype=int)
         self.place_infos = np.full((len(self.blocks_list), 7), -1)
@@ -88,7 +81,7 @@ class SwapPlacement(Placement):
 
         hpwl = self.calculate_hpwl()
         reward = self.hpwl_reward(hpwl)
-        # reward = self.hpwl_diff_reward(last_hpwl, hpwl)
+        reward = self.hpwl_diff_reward(last_hpwl, hpwl)
         # if action == self.cheat_trajectory[self.num_step_episode]:
         #     reward = 0.0
         done = False
@@ -133,13 +126,14 @@ class SwapPlacement(Placement):
             infos,
         )
 
-    def reset(self):
+    def reset(self, seed=0):
         self.num_step_episode = 0
         self.cumulative_reward = 0
         self.prev_actions = []
         self.board_image, self.place_infos, self.place_coords = (
             self._place_initial_blocks(
-                optimized_file=os.path.join(self.data_dir, "optimized.place"), non_fixed_init=self.non_fixed_init, seed=self.seed
+                optimized_file=os.path.join(self.data_dir, "optimized.place"), 
+                seed=seed
             )
         )
 
@@ -271,7 +265,7 @@ class SwapPlacement(Placement):
 
         return self.board_image.copy(), self.place_infos.copy()
 
-    def _place_initial_blocks(self, optimized_file, non_fixed_init=False, seed=0):
+    def _place_initial_blocks(self, optimized_file, seed):
         """CXB experiment"""
         place_coords = np.full((len(self.blocks_list), 2), -1)
         board_image = np.zeros(self.observation_space["board_image"].shape, dtype=float)
@@ -326,15 +320,9 @@ class SwapPlacement(Placement):
             swappable_positions[0].append(i // self.width)
             swappable_positions[1].append(i % self.width)
 
-        if non_fixed_init: # the initial placement will be changed in each episodes starts.
-            pass
-        else:
-            np.random.seed(
-                seed
-            )
-            
+        rng = np.random.default_rng(seed)
         for block_index in self.place_order:
-            random_index = np.random.choice(valid_positions)
+            random_index = rng.choice(valid_positions)
             x, y = random_index // self.width, random_index % self.width
 
             place_coords[block_index] = [x, y]

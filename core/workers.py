@@ -8,7 +8,6 @@ from core.mcts import BatchTree, MCTS
 from config.base import BaseConfig
 from core.replay_buffer import TransitionBuffer, ReplayBuffer, MCTSRollingWindow
 from core.storage import SharedStorage
-from core.util import MinMaxStats
 
 
 class MCTSWorker:
@@ -19,6 +18,7 @@ class MCTSWorker:
         amp: bool,
         num_envs: int,
         use_dirichlet: bool,
+        worker_id: int = 0,
         simulator: bool = False,
     ):
         self.config = config
@@ -26,15 +26,28 @@ class MCTSWorker:
         self.model.eval()
         self.num_envs = num_envs
         self.use_dirichlet = use_dirichlet
+        self.worker_id = worker_id
 
         self.envs = [
             config.env_creator(
-                simulator=simulator, num_target_blocks=config.num_target_blocks, non_fixed_init=config.non_fixed_init, seed=config.seed
+                simulator=simulator, 
+                num_target_blocks=config.num_target_blocks, 
+                non_fixed_init=config.non_fixed_init
             )
             for _ in range(self.num_envs)
         ]
         self.env_observation_space = self.envs[0].observation_space["board_image"]
         self.env_action_space = self.envs[0].action_space
+
+    def _reset_envs(self, env):
+        """Reset environment with appropriate seed"""
+        # in test, we set the seed larger than 2**25, so the test init never show in the training
+        if self.config.non_fixed_init:
+            seed = np.random.randint(0, 2**20) + self.worker_id * 1000
+            obs, info = env.reset(seed=seed)
+        else:
+            obs, info = env.reset(seed=self.config.seed)
+        return obs, info
 
     def collect(self):
         roots = BatchTree(
@@ -48,10 +61,8 @@ class MCTSWorker:
         ]
         finished = [False] * self.num_envs
 
-        for i, env in enumerate(
-            self.envs
-        ):  # Initialize rolling windows for frame stacking
-            obs, info = env.reset()
+        for i, env in enumerate(self.envs):
+            obs, info = self._reset_envs(env)
             mcts_windows[i].add(
                 obs=obs["board_image"],
                 env_state=env.get_state(),
@@ -180,10 +191,8 @@ class MCTSWorker:
             for _ in range(self.num_envs)
         ]
 
-        for i, env in enumerate(
-            self.envs
-        ):  # Initialize rolling windows for frame stacking
-            obs, info = env.reset()
+        for i, env in enumerate(self.envs):
+            obs, info = self._reset_envs(env)
             mcts_windows[i].add(
                 obs=obs["board_image"],
                 env_state=env.get_state(),
@@ -227,10 +236,11 @@ class RolloutWorker(MCTSWorker):
         amp: bool,
         replay_buffer: ReplayBuffer,
         storage: SharedStorage,
+        worker_id: int = 0,
     ):
         num_envs = config.num_envs_per_worker
         use_dirichlet = config.use_dirichlet
-        super().__init__(config, device, amp, num_envs, use_dirichlet)
+        super().__init__(config, device, amp, num_envs, use_dirichlet, worker_id)
 
         self.replay_buffer = replay_buffer
         self.storage = storage
@@ -294,11 +304,12 @@ class TestWorker(MCTSWorker):
         config: BaseConfig,
         device: str,
         amp: bool,
+        worker_id: int = 0,
         simulator: bool = False,
     ):
         num_envs = config.num_envs_per_worker
         use_dirichlet = config.test_use_dirichlet
-        super().__init__(config, device, amp, num_envs, use_dirichlet, simulator)
+        super().__init__(config, device, amp, num_envs, use_dirichlet, worker_id, simulator)
 
         self.stats = None
         self.evaluation_stats = None
@@ -333,11 +344,12 @@ class EvaluateWorker(MCTSWorker):
         config: BaseConfig,
         device: str,
         amp: bool,
+        worker_id: int = 0,
         simulator: bool = False,
     ):
         num_envs = config.num_envs_per_worker
         use_dirichlet = config.test_use_dirichlet
-        super().__init__(config, device, amp, num_envs, use_dirichlet, simulator)
+        super().__init__(config, device, amp, num_envs, use_dirichlet, worker_id, simulator)
 
         self.stats = None
         self.evaluation_stats = None

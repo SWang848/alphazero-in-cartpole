@@ -16,8 +16,8 @@ def test(args, config, model, log_dir):
     test_workers = [
         TestWorker.options(
             num_cpus=args.num_cpus_per_worker, num_gpus=args.num_gpus_per_worker
-        ).remote(config, args.device_workers, args.amp)
-        for _ in range(args.num_rollout_workers)
+        ).remote(config, args.device_workers, args.amp, worker_id=i)
+        for i in range(args.num_rollout_workers)
     ]
     num_episodes_per_worker = int(args.num_test_episodes / args.num_rollout_workers)
     workers = [

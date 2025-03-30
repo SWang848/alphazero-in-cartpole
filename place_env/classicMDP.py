@@ -16,9 +16,9 @@ import numpy as np
 class ClassicPlacement(Placement):
 
     def __init__(
-        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30, seed=0
+        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30
     ):
-        super().__init__(log_dir, simulator, render_mode, num_target_blocks, seed)
+        super().__init__(log_dir, simulator, render_mode, num_target_blocks)
         # state and action space defination
         self.board_image = np.zeros((6, self.width, self.height), dtype=int)
         self.place_infos = np.full((len(self.blocks_list), 7), -1)
@@ -105,7 +105,7 @@ class ClassicPlacement(Placement):
             infos,
         )
     
-    def reset(self):
+    def reset(self, seed=0):
         self.num_step_episode = 0
         self.cumulative_reward = 0
         self.place_coords = self.init_place_coords.copy()

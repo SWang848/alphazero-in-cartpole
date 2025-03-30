@@ -23,13 +23,12 @@ class Placement(gym.Env):
     orange = (255, 229, 153)
 
     def __init__(
-        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30, seed=0
+        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30
     ):
         # metadata = {"render.modes": ["human"]}
 
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
-        self.seed = seed
 
         # In CC, the data path saved in the local disk is set in the environment variable.
         if "data" in os.environ:
@@ -106,7 +105,7 @@ class Placement(gym.Env):
     def step(self):
         raise NotImplementedError("subclasses must implement this method")
 
-    def reset(self):
+    def reset(self, seed=None):
         raise NotImplementedError("subclasses must implement this method")
 
     def get_mask(self):
