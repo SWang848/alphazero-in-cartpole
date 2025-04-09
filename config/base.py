@@ -39,9 +39,9 @@ class BaseConfig:
             value_support_max: int,  # See muZero paper
             value_support_delta: float,  # See muZero paper
             value_transform: bool,  # See muZero paper
-            forced_exploration: bool, # forced explore the barely visited but potentially good nodes
-            k: float, # related to the forced exploration
-            percentage: float, # related to the forced exploration
+            m_top: int,
+            c_visit: int,
+            c_scale: float,
     ):
         self.training_steps = training_steps
         self.pretrain_steps = pretrain_steps
@@ -77,9 +77,9 @@ class BaseConfig:
         self.value_support = DiscreteSupport(value_support_min, value_support_max, value_support_delta)
         self.value_transform = value_transform
         
-        self.forced_exploration = forced_exploration
-        self.k = k
-        self.percentage = percentage
+        self.m_top = m_top
+        self.c_visit = c_visit
+        self.c_scale = c_scale
 
         self._action_shape = None
         self._obs_shape = None

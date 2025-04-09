@@ -12,6 +12,9 @@ def random_seed(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
+def sample_gumbel(shape, eps=1e-20):
+    U = np.random.uniform(0, 1, shape)
+    return -np.log(-np.log(U + eps) + eps)
 
 def trans_coordinate(coordinate: list, grid_size: int, out_type: str) -> list:
     """

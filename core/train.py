@@ -13,7 +13,6 @@ from core.workers import RolloutWorker
 from core.replay_buffer import ReplayBuffer, TransitionBuffer
 from core.storage import SharedStorage
 
-
 def train(args, config: BaseConfig, model, summary_writer, log_dir):
     print("Starting training...")
     if args.cc:
@@ -36,10 +35,6 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
         optimizer, 1.0, 0.1, total_iters=config.training_steps * config.num_sgd_iter
     )
 
-    demonstration_buffer = None
-    # if config.demo_buffer_size > 0:  # Uncomment for AlphaTensor like training
-    #    demonstration_buffer = create_filled_demonstration_buffer(args, config)
-
     model.train()
 
     replay_buffer = ReplayBuffer.remote(config.replay_buffer_size)
@@ -59,9 +54,6 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
 
     for train_step in range(config.training_steps):
         print(f"Training step {train_step}...")
-        # if train_step >= config.training_steps:  # Check if we are done
-        #     time.sleep(30)
-        #     break
 
         while True:  # Wait until RolloutWorkers collected their samples
             workers_finished = ray.get(storage.get_workers_finished.remote())

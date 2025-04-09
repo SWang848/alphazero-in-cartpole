@@ -43,10 +43,10 @@ class Config(BaseConfig):
         value_support_max: int = 0,
         value_support_delta: int = 1,
         value_transform: bool = True,
-        forced_exploration: bool = True,
-        k: float = 2.0,
-        percentage: float = 0.3,
         log_dir: str = None,
+        m_top: int = 8,
+        c_visit: int = 50,
+        c_scale: float = 0.1,
     ):
         super().__init__(
             training_steps,
@@ -80,9 +80,9 @@ class Config(BaseConfig):
             value_support_max,
             value_support_delta,
             value_transform,
-            forced_exploration,
-            k,
-            percentage
+            m_top,
+            c_visit,
+            c_scale,
         )
         # rewrote by user agruments in the main.py 
         self.log_dir = log_dir

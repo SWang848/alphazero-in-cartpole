@@ -13,10 +13,12 @@ import ray
 @dataclass
 class TrainingBatch:
     obs: np.ndarray
+    actions: np.ndarray
     rewards: np.ndarray
     dones: np.ndarray
     mcts_policies: np.ndarray
     value_targets: np.ndarray
+    root_q_values: np.ndarray
     infos: List[Dict[Any, Any]]
     action_mask: np.ndarray
 
@@ -30,6 +32,12 @@ class TrainingBatch:
                     self,
                     f.name,
                     torch.from_numpy(copy(getattr(self, f.name))).bool().to(device),
+                )
+            elif f.name == "actions":
+                setattr(
+                    self,
+                    f.name,
+                    torch.from_numpy(copy(getattr(self, f.name))).long().to(device),
                 )
             else:
                 setattr(
@@ -98,6 +106,7 @@ class TransitionBuffer:
     value_targets: List[Optional[float]] = field(
         default_factory=lambda: []
     )  # Can be list of `None` until end of episode
+    root_q_values: List[Optional[float]] = field(default_factory=lambda: [])
     env_states: List[Dict[str, Any]] = field(default_factory=lambda: [])
     priorities: List[float] = field(default_factory=lambda: [])
 
@@ -123,6 +132,7 @@ class TransitionBuffer:
         info,
         mcts_policy,
         value_target,
+        root_q_value,
         env_state,
         priority,
     ):
@@ -133,6 +143,7 @@ class TransitionBuffer:
         self.infos.append(info)
         self.mcts_policies.append(mcts_policy)
         self.value_targets.append(value_target)
+        self.root_q_values.append(root_q_value)
         self.env_states.append(env_state)
         self.priorities.append(priority)
 
@@ -253,7 +264,9 @@ class TransitionBuffer:
         return stats
 
     @staticmethod
-    def compute_wandb_buffers(buffers: List["TransitionBuffer"], episode_best_found: int):
+    def compute_wandb_buffers(
+        buffers: List["TransitionBuffer"], episode_best_found: int
+    ):
         stats = {
             "end_of_episode_rewards": [],
             "end_of_episode_wirelength": [],

@@ -30,8 +30,8 @@ class MCTSWorker:
 
         self.envs = [
             config.env_creator(
-                simulator=simulator, 
-                num_target_blocks=config.num_target_blocks, 
+                simulator=simulator,
+                num_target_blocks=config.num_target_blocks,
             )
             for _ in range(self.num_envs)
         ]
@@ -70,90 +70,50 @@ class MCTSWorker:
                 info=info,
             )
 
-        current_best_found = {"hpwl":float("inf"), "reward":None, "state":None}
+        current_best_found = {"hpwl": float("inf"), "reward": None, "state": None}
         while not all(finished):
             # Prepare roots
-            priors, values = self.model.compute_priors_and_values(
-                mcts_windows
-            )  # Compute priors and values for nodes to be expanded
+            priors, _, roots_logits = self.model.compute_priors_and_values(mcts_windows)
 
-            noises = None  # Inject noise into priors if configured
-            if self.use_dirichlet:
-                noises = [
-                    np.random.dirichlet(
-                        [self.config.root_dirichlet_alpha] * self.env_action_space.n
-                    ).astype(np.float32)
-                    for _ in range(self.num_envs)
-                ]
-            roots.prepare(
-                mcts_windows, self.config.root_exploration_fraction, priors, noises
+            roots.prepare(mcts_windows, priors, roots_logits)
+            windows = deepcopy(mcts_windows)
+
+            selected_actions, root_values, root_q_values, best_found = (
+                mcts.gumbel_squential_halving_search(roots, windows)
             )
 
-            windows = deepcopy(mcts_windows)
-            root_visit_dists, root_values, best_found = mcts.search(
-                roots, windows
-            )  # Do MCTS search
             if current_best_found["hpwl"] > best_found["hpwl"]:
                 current_best_found = best_found
 
             # Execute action sampled from MCTS policy
-            actions = []
-            for env_index, visit_dist in enumerate(root_visit_dists):
-                if finished[
-                    env_index
-                ]:  # We can skip this, because this sub environment is done
-                    actions.append(None)
-                    continue
-
-                # Calculate MCTS policy
-                assert sum(visit_dist) > 0
-                mcts_policy = visit_dist / np.sum(
-                    visit_dist
-                )  # Convert child visit counts to probability distribution (TODO: temperature)
-
-                # Take maximum visited child as action
-                # We do it like this as to randomize action selection for case where visit counts are equal
-                action = np.random.choice(
-                    np.argwhere(mcts_policy == np.max(mcts_policy)).flatten()
-                )
-                # action = np.random.choice(range(self.env_action_space.n), p=mcts_policy)  # We could also sample instead of maxing
-                actions.append(action)
+            for env_index, selected_action in enumerate(selected_actions):
 
                 obs, reward, done, truncated, info = self.envs[env_index].step(
-                    action
+                    selected_action
                 )  # Apply action
 
-                if self.config.root_value_targets:
-                    value_target = (
-                        reward + self.config.gamma * root_values[env_index] * done
-                    )
-                else:
-                    value_target = root_values[env_index]
+                value_target = root_values[env_index]
 
                 transition_buffers[env_index].add_one(  # Add experience to data storage
                     mcts_windows[
                         env_index
                     ].latest_obs(),  # The observation the action is based upon (vs. `obs`, which is the observation the action generated)
-                    action,
+                    selected_action,
                     reward,
                     done,
                     info,
-                    mcts_policy,
+                    [],
                     value_target,
+                    root_q_values[env_index],
                     mcts_windows[env_index].env_state,
                     1.0,  # TODO
                 )
-
-                # Priority by value error
-                # priority = nn.L1Loss(reduction='none')(torch.Tensor([values[env_index]]), torch.Tensor([root_values[env_index]])).item()
-                # priority += 1e-5
-                # TODO: obs vs mcts_window obs
 
                 mcts_windows[env_index].add(
                     obs["board_image"],
                     self.envs[env_index].get_state(),
                     reward=reward,
-                    action=action,
+                    action=selected_action,
                     info=info,
                 )  # Update rolling window for frame stacking
 
@@ -167,19 +127,14 @@ class MCTSWorker:
                             gamma=self.config.gamma,
                         )
 
-                    # Priority by "goodness"
-                    # accu = max if self.config.max_reward_return else sum
-                    # priorities = [accu(transition_buffers[env_index].rewards)] * transition_buffers[env_index].size()
-                    # transition_buffers[env_index].priorities = priorities
-
             roots.apply_actions(
-                actions
+                selected_actions
             )  # Move the tree roots to the new nodes of actions taken
 
         roots.clear()
-        
+
         return transition_buffers, current_best_found
-    
+
     def evaluate(self):
         roots = BatchTree(
             self.num_envs, self.envs[0].action_space.n, self.config
@@ -201,7 +156,7 @@ class MCTSWorker:
             )
 
         # Prepare roots
-        priors, values = self.model.compute_priors_and_values(
+        priors, values, _ = self.model.compute_priors_and_values(
             mcts_windows
         )  # Compute priors and values for nodes to be expanded
 
@@ -218,13 +173,11 @@ class MCTSWorker:
         )
 
         windows = deepcopy(mcts_windows)
-        _, _, best_found = mcts.search(
-            roots, windows
-        )  # Do MCTS search
+        _, _, best_found = mcts.search(roots, windows)  # Do MCTS search
 
         roots.clear()
         return best_found
-        
+
 
 @ray.remote
 class RolloutWorker(MCTSWorker):
@@ -270,16 +223,19 @@ class RolloutWorker(MCTSWorker):
 
             # Collect data
             whole_transition_buffers = []
-            episode_best_found = {"hpwl":float("inf"), "reward":None, "state":None}
+            episode_best_found = {"hpwl": float("inf"), "reward": None, "state": None}
             while (
                 len(whole_transition_buffers) < self.config.min_num_episodes_per_worker
             ):
                 transition_buffers, best_found = self.collect()
                 if episode_best_found["hpwl"] > best_found["hpwl"]:
                     episode_best_found = best_found
-                
+
                 # set the global best found
-                if ray.get(self.storage.get_best_found.remote())["hpwl"] > best_found["hpwl"]:
+                if (
+                    ray.get(self.storage.get_best_found.remote())["hpwl"]
+                    > best_found["hpwl"]
+                ):
                     self.storage.set_best_found.remote(best_found)
                 whole_transition_buffers.extend(transition_buffers)
 
@@ -308,7 +264,9 @@ class TestWorker(MCTSWorker):
     ):
         num_envs = config.num_envs_per_worker
         use_dirichlet = config.test_use_dirichlet
-        super().__init__(config, device, amp, num_envs, use_dirichlet, worker_id, simulator)
+        super().__init__(
+            config, device, amp, num_envs, use_dirichlet, worker_id, simulator
+        )
 
         self.stats = None
         self.evaluation_stats = None
@@ -348,7 +306,9 @@ class EvaluateWorker(MCTSWorker):
     ):
         num_envs = config.num_envs_per_worker
         use_dirichlet = config.test_use_dirichlet
-        super().__init__(config, device, amp, num_envs, use_dirichlet, worker_id, simulator)
+        super().__init__(
+            config, device, amp, num_envs, use_dirichlet, worker_id, simulator
+        )
 
         self.stats = None
         self.evaluation_stats = None
@@ -359,9 +319,10 @@ class EvaluateWorker(MCTSWorker):
 
         # Evalute policy
         self.best_found = self.evaluate()
-    
+
     def get_stats(self):
         return self.best_found
+
 
 @ray.remote
 class DemonstrationWorker:
