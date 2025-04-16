@@ -182,16 +182,19 @@ class ResModel(BaseModel):
         selected_probs = probs.gather(1, train_batch.actions.unsqueeze(1)).squeeze()
         simple_policy_loss = -torch.log(selected_probs).mean()
         sigma_q_transform = (
-            (self.config.c_visit + self.config.num_simulations/2)
+            (self.config.c_visit + 50)
             * self.config.c_scale
             * train_batch.root_q_values
         )
-        pi_target = torch.softmax(masked_policy_logits + sigma_q_transform, dim=1)       
-        policy_loss = (
-            torch.mean(
-                pi_target[train_batch.action_mask] * (torch.log(pi_target[train_batch.action_mask]) - torch.log_softmax(masked_policy_logits, dim=1)[train_batch.action_mask])
-                )+ simple_policy_loss
+        pi_target = torch.softmax(masked_policy_logits + sigma_q_transform, dim=1)
+        log_pi_target = torch.log(pi_target)
+        log_pi_policy = torch.log_softmax(masked_policy_logits, dim=1)
+        
+        # Only compute KL divergence on valid actions
+        masked_kl = pi_target[train_batch.action_mask] * (
+            log_pi_target[train_batch.action_mask] - log_pi_policy[train_batch.action_mask]
         )
+        policy_loss = torch.mean(masked_kl) + simple_policy_loss
         value_loss = -(
             torch.log_softmax(value_logits, dim=1) * value_targets_phi
         ).mean()

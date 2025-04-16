@@ -78,7 +78,7 @@ class MCTSWorker:
             roots.prepare(mcts_windows, priors, roots_logits)
             windows = deepcopy(mcts_windows)
 
-            selected_actions, root_values, root_q_values, best_found = (
+            selected_actions, roots_values, roots_q_values, best_found = (
                 mcts.gumbel_squential_halving_search(roots, windows)
             )
 
@@ -92,7 +92,7 @@ class MCTSWorker:
                     selected_action
                 )  # Apply action
 
-                value_target = root_values[env_index]
+                value_target = roots_values[env_index]
 
                 transition_buffers[env_index].add_one(  # Add experience to data storage
                     mcts_windows[
@@ -104,7 +104,7 @@ class MCTSWorker:
                     info,
                     [],
                     value_target,
-                    root_q_values[env_index],
+                    roots_q_values[env_index],
                     mcts_windows[env_index].env_state,
                     1.0,  # TODO
                 )
