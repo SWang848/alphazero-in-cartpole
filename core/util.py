@@ -244,18 +244,22 @@ class MinMaxStats:
         self.minimum = float("inf")
 
     def update(self, value: float):
-        if value is None:
-            raise ValueError
-
         self.maximum = max(self.maximum, value)
         self.minimum = min(self.minimum, value)
+    
+    def clear(self):
+        self.maximum = -float("inf")
+        self.minimum = float("inf")
 
     def normalize(self, value: float) -> float:
         delta = self.maximum - self.minimum
-        if delta < self.max_delta:  # See: EfficientZero implementation
-            value_norm = (value - self.minimum) / self.max_delta
-        else:
-            value_norm = (value - self.minimum) / delta
+        value_norm = value
+        # if maximum and minimum are not updated, return the original value
+        if delta > 0:
+            if delta < self.max_delta:  # See: EfficientZero implementation
+                value_norm = (value - self.minimum) / self.max_delta
+            else:
+                value_norm = (value - self.minimum) / delta
         return value_norm
 
 

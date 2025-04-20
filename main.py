@@ -32,6 +32,7 @@ if __name__ == "__main__":
     parser.add_argument("--opr", default="train", type=str)
     parser.add_argument("--num_rollout_workers", default=4, type=int)
     parser.add_argument("--num_test_workers", default=1, type=int)
+    parser.add_argument("--max_parallel_searches", default=4, type=int)
     parser.add_argument("--num_cpus_per_worker", default=4, type=float)
     parser.add_argument("--num_gpus_per_worker", default=0.125, type=float)
     parser.add_argument("--num_test_episodes", default=10, type=float)
