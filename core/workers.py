@@ -37,6 +37,9 @@ class MCTSWorker:
         ]
         self.env_observation_space = self.envs[0].observation_space["board_image"]
         self.env_action_space = self.envs[0].action_space
+        
+        # Create a single MCTS instance for this worker to avoid recreating actors for each episode
+        self.mcts = MCTS(self.config, self.model)
 
     def _reset_envs(self, env):
         """Reset environment with appropriate seed"""
@@ -52,7 +55,6 @@ class MCTSWorker:
         roots = BatchTree(
             self.num_envs, self.envs[0].action_space.n, self.config
         )  # Prepare datastructures
-        mcts = MCTS(self.config, self.model)
         transition_buffers = [TransitionBuffer() for _ in range(self.num_envs)]
         mcts_windows = [
             MCTSRollingWindow(self.config.obs_shape, self.config.frame_stack)
@@ -79,7 +81,7 @@ class MCTSWorker:
             windows = deepcopy(mcts_windows)
 
             selected_actions, roots_values, roots_q_values, best_found = (
-                mcts.gumbel_squential_halving_search(roots, windows)
+                self.mcts.gumbel_squential_halving_search(roots, windows)
             )
 
             if current_best_found["hpwl"] > best_found["hpwl"]:
@@ -139,7 +141,8 @@ class MCTSWorker:
         roots = BatchTree(
             self.num_envs, self.envs[0].action_space.n, self.config
         )  # Prepare datastructures
-        mcts = MCTS(self.config, self.model)
+        # Use the pre-created MCTS instance instead of creating a new one
+        # mcts = MCTS(self.config, self.model)
         mcts_windows = [
             MCTSRollingWindow(self.config.obs_shape, self.config.frame_stack)
             for _ in range(self.num_envs)
@@ -173,7 +176,7 @@ class MCTSWorker:
         )
 
         windows = deepcopy(mcts_windows)
-        _, _, best_found = mcts.search(roots, windows)  # Do MCTS search
+        _, _, best_found = self.mcts.search(roots, windows)  # Do MCTS search
 
         roots.clear()
         return best_found

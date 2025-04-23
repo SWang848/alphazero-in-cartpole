@@ -148,7 +148,7 @@ class ResModel(BaseModel):
             policy_logits, values_logits = self.forward(obs)
 
         masked_policy_logits = torch.where(
-            mask, policy_logits, torch.tensor(-float("inf")).to(self.device)
+            mask, policy_logits, torch.tensor(-float(1e9)).to(self.device)
         )
         priors = nn.Softmax(dim=-1)(masked_policy_logits)
         values_softmax = nn.Softmax(dim=-1)(values_logits)
@@ -181,20 +181,21 @@ class ResModel(BaseModel):
         probs = torch.softmax(masked_policy_logits, dim=1)
         selected_probs = probs.gather(1, train_batch.actions.unsqueeze(1)).squeeze()
         simple_policy_loss = -torch.log(selected_probs).mean()
-        sigma_q_transform = (
-            (self.config.c_visit + 50)
-            * self.config.c_scale
-            * train_batch.root_q_values
-        )
-        pi_target = torch.softmax(masked_policy_logits + sigma_q_transform, dim=1)
-        log_pi_target = torch.log(pi_target)
-        log_pi_policy = torch.log_softmax(masked_policy_logits, dim=1)
+        # sigma_q_transform = (
+        #     (self.config.c_visit + 50)
+        #     * self.config.c_scale
+        #     * train_batch.root_q_values
+        # )
+        # pi_target = torch.softmax(masked_policy_logits + sigma_q_transform, dim=1)
+        # log_pi_target = torch.log(pi_target)
+        # log_pi_policy = torch.log_softmax(masked_policy_logits, dim=1)
         
-        # Only compute KL divergence on valid actions
-        masked_kl = pi_target[train_batch.action_mask] * (
-            log_pi_target[train_batch.action_mask] - log_pi_policy[train_batch.action_mask]
-        )
-        policy_loss = torch.mean(masked_kl) + simple_policy_loss
+        # # Only compute KL divergence on valid actions
+        # masked_kl = pi_target[train_batch.action_mask] * (
+        #     log_pi_target[train_batch.action_mask] - log_pi_policy[train_batch.action_mask]
+        # )
+        # policy_loss = torch.mean(masked_kl) + simple_policy_loss
+        policy_loss = simple_policy_loss
         value_loss = -(
             torch.log_softmax(value_logits, dim=1) * value_targets_phi
         ).mean()
