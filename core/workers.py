@@ -70,6 +70,7 @@ class MCTSWorker:
                 reward=None,
                 action=None,
                 info=info,
+                done=False,
             )
 
         current_best_found = {"hpwl": float("inf"), "reward": None, "state": None}
@@ -117,6 +118,7 @@ class MCTSWorker:
                     reward=reward,
                     action=selected_action,
                     info=info,
+                    done=done,
                 )  # Update rolling window for frame stacking
 
                 if done:
@@ -156,6 +158,7 @@ class MCTSWorker:
                 reward=None,
                 action=None,
                 info=info,
+                done=False,
             )
 
         # Prepare roots

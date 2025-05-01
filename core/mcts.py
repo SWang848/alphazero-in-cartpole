@@ -2,120 +2,10 @@ import math
 from typing import Optional, Dict
 import numpy as np
 import ray
-from copy import deepcopy
+from collections import defaultdict
 
-from config.base import BaseConfig
 from core.util import MinMaxStats, sample_gumbel
-
-
-@ray.remote
-class GumbelSearchWorker:
-
-    def __init__(
-        self,
-        config: BaseConfig,
-    ):
-        self.config = config
-        self.env = config.env_creator(num_target_blocks=config.num_target_blocks)
-
-    def process_batch(
-        self,
-        root_nodes,         # List of all root nodes
-        task_assignments,   # List of (idx, batch_children) tuples to process
-        mcts_windows,       # List of rolling windows for all environments
-        min_max_stats,      # List of all min_max_stats
-    ):
-
-        # Initialize storage for results
-        leaf_results = []  # Store tuples of (leaf_node, window, done, info, env_index)
-        windows = deepcopy(mcts_windows)
-        self.env.reset()
-        best_found = {"hpwl": float("inf"), "reward": None, "state": None}
-        
-        # Process each assigned action
-        for idx, batch_children in task_assignments:
-            # Collect trajectories for this action across all environments
-            trajectories = []
-            for env_index, (root, child, window, stats) in enumerate(zip(
-                root_nodes, batch_children, windows, min_max_stats
-            )):
-                node = root
-                parent_q = 0
-                trajectory = [node]
-                
-                # Start with the designated child for the root
-                if node.expanded:
-                    mean_q = node.mean_q(parent_q)
-                    best_child = child  # Use the specified child
-                    best_child.parent_traversed = node
-                    
-                    if best_child.expanded:
-                        window.add(
-                            best_child.obs,
-                            best_child.env_state,
-                            best_child.reward,
-                            best_child.action,
-                            best_child.info,
-                        )
-                    
-                    node = best_child
-                    trajectory.append(node)
-                    
-                    # Continue with normal traversal after the first step
-                    while node.expanded:
-                        mean_q = node.mean_q(parent_q)
-                        best_child = node.best_child(stats, mean_q)
-                        best_child.parent_traversed = node
-                        
-                        if best_child.expanded:
-                            window.add(
-                                best_child.obs,
-                                best_child.env_state,
-                                best_child.reward,
-                                best_child.action,
-                                best_child.info,
-                            )
-                        node = best_child
-                        trajectory.append(node)
-                
-                trajectories.append((env_index, trajectory))
-            
-            # Process trajectories to perform environment steps
-            for env_index, trajectory in trajectories:
-                if len(trajectory) <= 1:
-                    # Simulation ended at root or couldn't start
-                    continue  # Skip this trajectory, no leaf node generated
-
-                from_node = trajectory[-2]
-                to_node = trajectory[-1]
-                
-                # Take environment step
-                self.env.set_state(from_node.env_state)
-                obs, reward, done, truncated, info = self.env.step(to_node.action)
-                
-                # Update local best found solution if applicable
-                if "hpwl" in info and info["hpwl"] < best_found["hpwl"]:
-                    best_found = {
-                        "hpwl": info["hpwl"],
-                        "reward": reward,
-                        "state": self.env.get_state(),
-                    }
-                
-                # Update window for the current environment
-                current_window = windows[env_index]
-                current_window.add(
-                    obs["board_image"],
-                    self.env.get_state(),
-                    reward,
-                    to_node.action,
-                    info,
-                )
-                
-                # Store results for this successful simulation step
-                leaf_results.append((to_node, current_window, done, info, env_index))
-
-        return leaf_results, best_found
-
+from core.search_worker import GumbelSearchWorker
 
 class Node:
     def __init__(self, config, action, num_actions):
@@ -174,9 +64,6 @@ class Node:
             + noise * exploration_fraction,
             0.0,
         )
-        # self.child_priors = np.where(self.child_priors != 0,
-        #                              self.child_priors * (1 - exploration_fraction) + noise * exploration_fraction,
-        #                              self.child_priors)
 
     def child_number_visits(self):
         return np.array([child.num_visits for _, child in self.children.items()])
@@ -244,8 +131,7 @@ class Node:
 
     def best_child(self, min_max_stats, mean_q):
         return self.children[self.best_action(min_max_stats, mean_q)]
-
-
+        
 class BatchTree:
     def __init__(self, root_num, num_actions, config):
         self.root_num = root_num
@@ -257,8 +143,6 @@ class BatchTree:
             root = Node(self.config, None, num_actions)
             self.roots.append(root)
 
-        self.node_hash_tables = [{} for _ in range(root_num)]
-
     def prepare(self, mcts_windows, priors, logits):
         for i in range(self.root_num):
             prior = priors[i]
@@ -267,11 +151,12 @@ class BatchTree:
             root.num_visits += 1
             info = mcts_windows[i].infos[0]
             logit = logits[i]
+            
             if not root.expanded and not root.terminal:
                 root.expand(mcts_windows[i].obs, None, False, info, state, prior, logit)
             elif not root.terminal and root.child_logits is None:
-                root.add_child_logits(logit)
-
+                root.add_child_logits(logit)        
+        
     def apply_actions(self, actions):
         for i in range(self.root_num):
             if actions[i] is None:
@@ -285,7 +170,7 @@ class BatchTree:
             new_root = root.get_child(action)
             new_root.parent = None
             self.roots[i] = new_root
-
+                
     def get_distributions(self):
         dists = []
         for root in self.roots:
@@ -324,13 +209,75 @@ class MCTS:
         while len(self._search_workers) < self.max_parallel_searches:
             worker = GumbelSearchWorker.options(num_cpus=0.5).remote(self.config)
             self._search_workers.append(worker)
+            
+    def prepare_subtrees(self, m, selected_children, mcts_windows):
+        """
+        Prepares subtrees across multiple workers in parallel.
+        
+        Args:
+            m: Number of top actions to consider
+            selected_children: List of selected child nodes for each root
+            mcts_windows: Environment windows for observation
+            
+        Returns:
+            tuple: (root_nodes, windows) where:
+                  - root_nodes: List of lists of action nodes with shape [num_env, num_node]
+                  - windows: List of lists of observation windows with shape [num_env, num_node]
+        """
+        num_workers = len(self._search_workers)
+        prepare_tasks = defaultdict(list)
+        mcts_windows_ref = ray.put(mcts_windows)
+        
+        batch_children = np.array(selected_children)
+        for i in range(m):
+            worker_idx = i % num_workers
+            prepare_tasks[worker_idx].append((batch_children[:, i]))
+        
+        futures = [
+            self._search_workers[worker_idx].initialize_subtree_roots.remote(
+                mcts_windows_ref,
+                tasks,
+                worker_idx
+            )
+            for worker_idx, tasks in prepare_tasks.items()
+        ]
+
+        results = ray.get(futures)
+        num_envs = len(mcts_windows)
+        
+        root_nodes = [[] for _ in range(num_envs)]
+        windows = [[] for _ in range(num_envs)]
+        worker_node_window_map = defaultdict(list)
+
+        for window_results, worker_idx in results:
+            for window, action_node, env_idx in window_results:
+                root_nodes[env_idx].append(action_node)
+                windows[env_idx].append(window)
+                worker_node_window_map[worker_idx].append((action_node, window))
+                
+        all_windows = [window for env_windows in windows for window in env_windows]
+        priors, _, _ = self.model.compute_priors_and_values(all_windows)
+        
+        expand_tasks = defaultdict(list)
+        i = 0
+        for worker_idx, node_window_pairs in worker_node_window_map.items():
+            for action_node, window in node_window_pairs:
+                expand_tasks[worker_idx].append((action_node, window, priors[i]))
+                i += 1
+        
+        ray.get([
+            self._search_workers[worker_idx].expand_subtrees.remote(expand_tasks)
+            for worker_idx, tasks in expand_tasks.items()
+        ])
+        
+        return root_nodes, windows
 
     def gumbel_squential_halving_search(self, roots, mcts_windows):
         # Ensure this instance has enough search workers
         while len(self._search_workers) < self.max_parallel_searches:
             worker = GumbelSearchWorker.options(num_cpus=0.5).remote(self.config)
             self._search_workers.append(worker)
-
+            
         # Initialize best found for this specific search
         best_found = {"hpwl": float("inf"), "reward": None, "state": None}
         min_max_stats = [MinMaxStats() for _ in range(roots.root_num)]
@@ -345,20 +292,20 @@ class MCTS:
 
         # Select initial top m actions more efficiently
         top_m_indices = np.argsort(gumbel_logits, axis=1)[:, -m:][:, ::-1]
-        selected_logits = np.take_along_axis(gumbel_logits, top_m_indices, axis=1)
-        
-        # Pre-compute child nodes for faster lookup
         roots_children = [root.children for root in roots.roots]
         selected_children = [[roots_children[i][action] for action in actions] 
                             for i, actions in enumerate(top_m_indices)]
-        num_workers = len(self._search_workers)
         
+        # Prepare subtrees across workers
+        root_nodes, windows = self.prepare_subtrees(m, selected_children, mcts_windows)
+            
         # Pre-allocate arrays for storing results
         all_leaf_nodes = []
         all_windows = []
         all_dones = []
         all_infos = []
         all_env_indices = []
+        all_worker_indices = []
         
         # Cache for child values - recalculated only when visits change
         children_value_cache = {}
@@ -372,35 +319,28 @@ class MCTS:
                     1, math.floor(self.config.num_simulations / (m * log2_m_top))
                 )
             
-            # Pre-put shared objects in ray object store
-            mcts_windows_ref = ray.put(mcts_windows)
-            roots_ref = ray.put(roots.roots)
-            min_max_stats_ref = ray.put(min_max_stats)
-            
             for _ in range(num_sims_per_action):
-                # More efficient batch processing
-                worker_assignments = {}  # Map worker_idx -> list of tasks for this worker
+
+                worker_assignments = defaultdict(list)
+                min_max_stats_ref = ray.put(min_max_stats)
+                worker_idx = 0
+                num_workers = len(self._search_workers)
                 
-                # Assign all actions across all workers
-                for i in range(m):
-                    batch_children = np.array(selected_children)[:, i]
-                    worker_idx = i % num_workers
-                    
-                    if worker_idx not in worker_assignments:
-                        worker_assignments[worker_idx] = []
-                    
-                    worker_assignments[worker_idx].append((i, batch_children))
+                # Group subtree roots by worker for balanced distribution
+                for env_idx in range(len(root_nodes)):
+                    for node_idx, (root_node, window) in enumerate(zip(root_nodes[env_idx], windows[env_idx])):
+                        if node_idx < m:  # Only process top m actions
+                            curr_worker = worker_idx % num_workers
+                            worker_assignments[curr_worker].append((env_idx, root_node, window))
+                            worker_idx += 1
                 
-                # Submit tasks to workers (one per worker with multiple actions to process)
                 futures = []
                 for worker_idx, tasks in worker_assignments.items():
-                    # Each worker gets multiple actions to process in a single remote call
                     futures.append(
-                        self._search_workers[worker_idx].process_batch.remote(
-                            roots_ref,
-                            tasks,  # List of (idx, batch_children) tuples
-                            mcts_windows_ref,
+                        self._search_workers[worker_idx].traverse.remote(
+                            tasks,  # List of (env_idx, root_node, window) tuples
                             min_max_stats_ref,
+                            worker_idx,
                         )
                     )
                 
@@ -413,6 +353,7 @@ class MCTS:
                 all_dones.clear()
                 all_infos.clear()
                 all_env_indices.clear()
+                all_worker_indices.clear()
                 
                 # Process all worker results
                 for worker_results in batch_results:
@@ -422,80 +363,108 @@ class MCTS:
                     if worker_best_found["hpwl"] < best_found["hpwl"]:
                         best_found = worker_best_found
                     
-                    # Extend results
-                    for leaf_node, window, done, info, env_index in leaf_results:
+                    for leaf_node, window, done, info, env_index, worker_idx in leaf_results:
                         all_leaf_nodes.append(leaf_node)
                         all_windows.append(window)
                         all_dones.append(done)
                         all_infos.append(info)
                         all_env_indices.append(env_index)
-                
-                # Skip NN evaluation if no leaves to process
-                if not all_leaf_nodes:
-                    continue
+                        all_worker_indices.append(worker_idx)
                     
                 # Perform batched NN inference
                 priors, values, _ = self.model.compute_priors_and_values(all_windows)
                 
-                # Process each leaf
+                # Organize backpropagation tasks by worker
+                backprop_tasks = defaultdict(list)
+                
+                # Group backpropagation tasks by worker to minimize RPC calls
                 for i in range(len(all_leaf_nodes)):
-                    # Backpropagate results
-                    self.backpropagate(
+                    worker_idx = all_worker_indices[i]
+                    backprop_tasks[worker_idx].append((
+                        all_env_indices[i],
                         all_leaf_nodes[i],
                         all_windows[i],
                         values[i],
                         priors[i],
                         all_dones[i],
-                        all_infos[i],
-                        min_max_stats[all_env_indices[i]],
+                        all_infos[i]
+                    ))
+                
+                # Dispatch backpropagation to workers in parallel
+                backprop_results = ray.get([
+                    self._search_workers[worker_idx].backpropagate.remote(
+                        tasks,
+                        min_max_stats_ref
                     )
+                    for worker_idx, tasks in backprop_tasks.items()
+                ])
+                
+                root_nodes = [[] for _ in range(num_roots)]
+                for worker_root_nodes, _ in backprop_results:
+                    for env_idx, nodes in worker_root_nodes.items():
+                        root_nodes[env_idx].extend(nodes)
+                
+                for env_idx in range(len(min_max_stats)):
+                    all_maximums = [max_vals[env_idx] for _, (_, max_vals) in backprop_results]
+                    all_minimums = [min_vals[env_idx] for _, (min_vals, _) in backprop_results]
+                    
+                    # Update with the maximum of maximums and minimum of minimums
+                    if all_maximums:  # Check if list is not empty
+                        min_max_stats[env_idx].maximum = max(min_max_stats[env_idx].maximum, *all_maximums)
+                    if all_minimums:  # Check if list is not empty
+                        min_max_stats[env_idx].minimum = min(min_max_stats[env_idx].minimum, *all_minimums)
                 
                 # Invalidate cache after node visits change
                 children_value_cache.clear()
             
-            # Compute selection scores for remaining candidates
             # Calculate node visit counts (only needed once per batch)
             max_visits = np.array([
-                max(child.num_visits for child in children)
-                for children in selected_children
+                max(node.num_visits for node in env_nodes)
+                for env_nodes in root_nodes
             ])
             
-            # Calculate child values with caching
-            children_values = np.zeros((num_roots, roots.roots[0].num_actions))
-            for j in range(num_roots):
-                if j not in children_value_cache:
-                    children_value_cache[j] = roots.roots[j].child_values(min_max_stats[j], roots.roots[j].mean_q(0))
-                children_values[j] = children_value_cache[j]
             
-            # Calculate actions array
-            actions = np.array([[child.action for child in children] 
-                              for children in selected_children])
-            
-            # Compute transforms
+            # Select logits and calculate action values in a single pass
+            selected_logits = np.zeros((num_roots, m))
+            action_values = np.zeros((num_roots, m))
+            for env_idx, env_nodes in enumerate(root_nodes):
+                for node_idx, node in enumerate(env_nodes):
+                    selected_logits[env_idx, node_idx] = gumbel_logits[env_idx, node.action]
+                    reward = node.reward if node.reward is not None else 0
+                    action_values[env_idx, node_idx] = reward + self.config.gamma * node.mean_value()
+            # Compute the Gumbel sigma transformation
             c_visit_term = (self.config.c_visit + max_visits[:, None]) * self.config.c_scale
-            action_values = np.take_along_axis(children_values, actions, axis=1)
             sigma_transforms = c_visit_term * action_values
+            
+            # Add transformation to selected logits
             sigma_logits = selected_logits + sigma_transforms
             
             # Update remaining budget and halve number of candidates
             remaining_sim_budget -= num_sims_per_action * m
             m = max(1, m // 2)
-
-                
+ 
             # Reuse existing arrays for top indices
             top_m_indices = np.argsort(sigma_logits, axis=1)[:, -m:][:, ::-1]
             
-            # Update selected children and logits
-            new_selected_children = []
-            for i, (children, indices) in enumerate(zip(selected_children, top_m_indices)):
-                new_selected_children.append([children[j] for j in indices])
-            selected_children = new_selected_children
+            # Reshape root_nodes based on top_m_indices
+            # Use list comprehension and numpy indexing for better performance
+            root_nodes = [
+                [nodes[idx] for idx in indices]
+                for nodes, indices in zip(root_nodes, top_m_indices)
+            ]
             
-            # Update selected logits
+            # Update windows to match root_nodes (if needed for future iterations)
+            windows = [
+                [windows[env_idx][idx] for idx in indices ]
+                for env_idx, indices in enumerate(top_m_indices)
+            ]
+            
+            # Update selected logits based on top indices
             selected_logits = np.take_along_axis(sigma_logits, top_m_indices, axis=1)
+            
         
         # Get final selected actions and values
-        selected_actions = [children[0].action for children in selected_children]
+        selected_actions = [nodes[0].action if nodes else None for nodes in root_nodes]
         
         # Calculate root values
         root_q_values = []
@@ -506,32 +475,3 @@ class MCTS:
                 root_q_values.append(roots.roots[i].child_values(min_max_stats[i], roots.roots[i].mean_q(0)))
         
         return selected_actions, roots.get_values(), root_q_values, best_found
-
-    def backpropagate(self, leaf_node, window, value, prior, done, info, min_max_stats):
-        leaf_node.expand(
-            window.latest_obs(), window.rewards[0], done, info, window.env_state, prior
-        )
-
-        accu = max if self.config.max_reward_return else sum
-        if done:
-            value = 0.0  # Terminal state value is 0
-
-        current_node = leaf_node
-        propagated_value = value
-        while current_node is not None:
-            current_node.value_sum += propagated_value
-            current_node.num_visits += 1
-            parent_node = current_node.parent_traversed
-
-            if parent_node is not None:  # If not the root node
-                reward = current_node.reward
-                qsa = accu([reward, self.config.gamma * current_node.mean_value()])
-                min_max_stats.update(qsa)
-                propagated_value = accu([reward, self.config.gamma * propagated_value])
-
-            else:  # This is the root node
-                min_max_stats.update(current_node.mean_value())
-
-            if parent_node is not None:
-                current_node.parent_traversed = None
-            current_node = parent_node
