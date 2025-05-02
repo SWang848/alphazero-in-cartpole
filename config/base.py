@@ -42,7 +42,6 @@ class BaseConfig:
             m_top: int,
             c_visit: int,
             c_scale: float,
-            max_parallel_searches: int = 4,  # Number of GumbelSearchWorker instances to use
     ):
         self.training_steps = training_steps
         self.pretrain_steps = pretrain_steps
@@ -68,7 +67,6 @@ class BaseConfig:
         self.root_dirichlet_alpha = root_dirichlet_alpha
         self.root_exploration_fraction = root_exploration_fraction
         self.num_simulations = num_simulations
-        self.max_parallel_searches = max_parallel_searches
         self.num_envs_per_worker = num_envs_per_worker
         self.min_num_episodes_per_worker = min_num_episodes_per_worker
         self.use_dirichlet: bool = use_dirichlet

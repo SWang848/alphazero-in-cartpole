@@ -47,7 +47,6 @@ class Config(BaseConfig):
         m_top: int = 8,
         c_visit: int = 50,
         c_scale: float = 0.1,
-        max_parallel_searches: int = 4,
     ):
         super().__init__(
             training_steps,
@@ -84,7 +83,6 @@ class Config(BaseConfig):
             m_top,
             c_visit,
             c_scale,
-            max_parallel_searches,
         )
         # rewrote by user agruments in the main.py 
         self.log_dir = log_dir

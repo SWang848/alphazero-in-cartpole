@@ -16,6 +16,7 @@ from core.test import test
 from core.evaluate import evaluate
 from config.place import Config
 
+
 def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
@@ -32,9 +33,8 @@ if __name__ == "__main__":
     parser.add_argument("--opr", default="train", type=str)
     parser.add_argument("--num_rollout_workers", default=4, type=int)
     parser.add_argument("--num_test_workers", default=1, type=int)
-    parser.add_argument("--max_parallel_searches", default=4, type=int)
     parser.add_argument("--num_cpus_per_worker", default=4, type=float)
-    parser.add_argument("--num_gpus_per_worker", default=0.125, type=float)
+    parser.add_argument("--num_gpus_per_worker", default=0.25, type=float)
     parser.add_argument("--num_test_episodes", default=10, type=float)
     parser.add_argument("--evaluation_interval", default=5, type=int)
     parser.add_argument("--model_path", default=None, type=str)
@@ -46,13 +46,13 @@ if __name__ == "__main__":
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--group_name", default="default", type=str)
     parser.add_argument("--seed", default=0, type=int)
-    parser.add_argument("--num_target_blocks", default=15, type=int)
+    parser.add_argument("--num_target_blocks", default=5, type=int)
     parser.add_argument("--lr", default=1e-3, type=float)
-    parser.add_argument("--c_init", default=2, type=float)
-    parser.add_argument("--num_simulations", default=100, type=int)
+    parser.add_argument("--c_init", default=2.5, type=float)
+    parser.add_argument("--num_simulations", default=20, type=int)
     parser.add_argument("--num_envs_per_worker", default=5, type=int)
     parser.add_argument("--min_num_episodes_per_worker", default=20, type=int)
-    parser.add_argument("--training_steps", default=30, type=int)
+    parser.add_argument("--training_steps", default=20, type=int)
     parser.add_argument("--batch_size", default=64, type=int)
     parser.add_argument("--non_fixed_init", action="store_true")
     parser.add_argument("--value_support_min", default=-10, type=int)
@@ -81,7 +81,11 @@ if __name__ == "__main__":
 
     summary_writer = SummaryWriter(log_dir, flush_secs=10)
 
-    config = Config(log_dir=log_dir, value_support_max=args.value_support_max, value_support_min=args.value_support_min)  # Apply set BaseConfig arguments
+    config = Config(
+        log_dir=log_dir,
+        value_support_max=args.value_support_max,
+        value_support_min=args.value_support_min,
+    )  # Apply set BaseConfig arguments
 
     for arg, arg_val in vars(args).items():
         if hasattr(config, arg):
@@ -111,7 +115,7 @@ if __name__ == "__main__":
     model = config.init_model(args.device_trainer, args.amp)  # Create (and load) model
     if args.model_path is not None:
         model.load_state_dict(torch.load(args.model_path))
-        
+
     opr_lst = args.opr.split(",")
     for opr in opr_lst:
         if opr == "train":
@@ -122,5 +126,5 @@ if __name__ == "__main__":
             pretrain(args, config, model, summary_writer, log_dir)
         elif opr == "evaluation":
             evaluate(args, config, model)
-    
+
     print("Finished")
