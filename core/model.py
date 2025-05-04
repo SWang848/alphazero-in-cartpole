@@ -177,10 +177,10 @@ class ResModel(BaseModel):
         if self.config.value_transform:
             value_targets = self.config.scalar_transform(value_targets)
         value_targets_phi = self.config.phi_transform(value_targets)
-
-        probs = torch.softmax(masked_policy_logits, dim=1)
-        selected_probs = probs.gather(1, train_batch.actions.unsqueeze(1)).squeeze()
-        simple_policy_loss = -torch.log(selected_probs).mean()
+        
+        log_probs = torch.log_softmax(masked_policy_logits, dim=1)
+        selected_log_probs = log_probs.gather(1, train_batch.actions.unsqueeze(1)).squeeze()
+        simple_policy_loss = -selected_log_probs.mean()
         # sigma_q_transform = (
         #     (self.config.c_visit + 50)
         #     * self.config.c_scale

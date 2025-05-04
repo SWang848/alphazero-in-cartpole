@@ -123,7 +123,6 @@ class Node:
     def best_action(self, min_max_stats: MinMaxStats, mean_q):
         score = self.puct_scores(min_max_stats, mean_q)
         masked_score = np.where(self.info["action_mask"], score, -np.inf)
-        # masked_score = np.where(self.child_priors != 0, score, -np.inf)
         max_val = np.max(masked_score)
         action = np.random.choice(np.argwhere(masked_score == max_val).flatten())
         return action
