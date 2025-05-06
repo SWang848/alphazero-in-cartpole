@@ -9,7 +9,7 @@
 #     done
 # done
 
-for seed in 12 0 8764 723 529; do
+for seed in 12 8764 723 529; do
     sbatch CC_script.sh $seed
 done
 
