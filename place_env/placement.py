@@ -208,7 +208,9 @@ class Placement(gym.Env):
     
     # for mcts simulation
     def set_state(self, state):
-        self = deepcopy(state)
+        # Copy all instance attributes from state
+        for key, value in state.__dict__.items():
+            setattr(self, key, deepcopy(value))
         return self
 
     # for mcts simulation
