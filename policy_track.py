@@ -59,8 +59,9 @@ def policy_track(args, config, model):
 
     for worker in test_workers:
         ray.kill(worker)
-        
+
     return best_found["hpwl"]
+
 
 if __name__ == "__main__":
     parser = ArgumentParser("MCTS Place, GO")
@@ -73,33 +74,45 @@ if __name__ == "__main__":
     parser.add_argument("--num_gpus_per_worker", default=1, type=float)
     parser.add_argument("--num_test_episodes", default=1, type=float)
     parser.add_argument("--model_path", default=None)
+    # parser.add_argument(
+    #     "--model_dir",
+    #     # default="/home/swang848/efficientalphazero/results/Swap-v0_24022025_1328_59"
+    #     # default="/home/swang848/efficientalphazero/results/Swap-v0_02032025_2138_59",
+    #     # default="/home/swang848/efficientalphazero/results/Swap-v0_05032025_1344_59",
+    #     # default="/home/swang848/efficientalphazero/results/Swap-v0_10032025_1656_59",
+    #     # default="/home/swang848/efficientalphazero/results/results_cc/Swap-v0_24032025_1809_93", #c15b_forced_exploration_fixed_init_2
+    #     # default="/home/swang848/efficientalphazero/results/results_cc/Swap-v0_24032025_1821_37"  #c15b_forced_exploration_non_fixed_init_2
+    #     # default="/home/swang848/efficientalphazero/results/results_cc/c15b_fixed_init_2"  #c15b_fixed_init_2
+    #     # default="/home/swang848/efficientalphazero/results/results_cc/Swap-v0_25032025_0422_93" #c15b_non_fixed_init_2
+    #     default="/home/swang848/efficientalphazero/results_CC/c15b_gumbel_cc_NFI_0_776",
+    # )
     parser.add_argument(
-        "--model_dir",
-        # default="/home/swang848/efficientalphazero/results/Swap-v0_24022025_1328_59"
-        # default="/home/swang848/efficientalphazero/results/Swap-v0_02032025_2138_59",
-        # default="/home/swang848/efficientalphazero/results/Swap-v0_05032025_1344_59",
-        # default="/home/swang848/efficientalphazero/results/Swap-v0_10032025_1656_59",
-        # default="/home/swang848/efficientalphazero/results/results_cc/Swap-v0_24032025_1809_93", #c15b_forced_exploration_fixed_init_2
-        # default="/home/swang848/efficientalphazero/results/results_cc/Swap-v0_24032025_1821_37"  #c15b_forced_exploration_non_fixed_init_2
-        # default="/home/swang848/efficientalphazero/results/results_cc/c15b_fixed_init_2"  #c15b_fixed_init_2
-        default="/home/swang848/efficientalphazero/results/results_cc/Swap-v0_25032025_0422_93" #c15b_non_fixed_init_2
+        "--model_dir_pool",
+        nargs="+", 
+        default=["/home/swang848/efficientalphazero/results_CC/c15b_gumbel_cc_0_776",
+                #  "/home/swang848/efficientalphazero/results_CC/c15b_gumbel_cc_12_275",
+                 "/home/swang848/efficientalphazero/results_CC/c15b_gumbel_cc_529_762",
+                 "/home/swang848/efficientalphazero/results_CC/c15b_gumbel_cc_723_179",
+                 "/home/swang848/efficientalphazero/results_CC/c15b_gumbel_cc_8764_960"],
+        help="List of model directories to evaluate"
     )
     parser.add_argument("--device_workers", default="cuda", type=str)
     parser.add_argument("--device_trainer", default="cuda", type=str)
     parser.add_argument("--amp", action="store_true")
     parser.add_argument("--debug", action="store_true")
-    parser.add_argument("--seed", default=529, type=int)
+    parser.add_argument("--seed", default=33554432, type=int)
     parser.add_argument("--non_fixed_init", action="store_true")
     parser.add_argument("--num_target_blocks", default=15, type=int)
     parser.add_argument("--c_init", default=2.5, type=float)
-    parser.add_argument("--num_simulations", default=120, type=int)
+    parser.add_argument("--num_simulations", default=150, type=int)
     parser.add_argument("--num_envs_per_worker", default=1, type=int)
     parser.add_argument("--value_support_min", default=-10, type=int)
     parser.add_argument("--value_support_max", default=0, type=int)
     parser.add_argument("--value_support_delta", default=1, type=int)
-    parser.add_argument("--forced_exploration", action="store_true")
-    parser.add_argument("--k", default=2.0, type=float)
-    parser.add_argument("--percentage", default=0.3, type=float)
+    parser.add_argument("--m_top", default=8, type=int)
+    parser.add_argument("--c_visit", default=36, type=int)
+    parser.add_argument("--c_scale", default=0.1, type=int)
+
     args = parser.parse_args()
 
     sub_dir = datetime.now().strftime("%d%m%Y_%H%M")
@@ -144,45 +157,92 @@ if __name__ == "__main__":
     model = config.init_model(args.device_trainer, args.amp)  # Create (and load) model
 
     ray.init(log_to_driver=False)
-    # sort model paths by training steps in ascending order
-    model_paths = sorted([
-        os.path.join(args.model_dir, f)
-        for f in os.listdir(args.model_dir)
-        if f.endswith(".pt") and "best" not in f and "latest" not in f
-    ], key=lambda x: int(os.path.basename(x).split('.')[0].split('_')[-1]), reverse=False)
-    latest_model = os.path.join(args.model_dir, "model_latest.pt")
-    if os.path.exists(latest_model):
-        model_paths.append(latest_model)
-    best_hpwl_list = []
-    for model_path in model_paths:
-        setattr(config, "model_path", model_path)
-        model.load_state_dict(torch.load(model_path))
-        best_hpwl = policy_track(args, config, model)
-        best_hpwl_list.append(best_hpwl)
+    all_results = {}
+    for model_dir in args.model_dir_pool:
+        print(f"\nEvaluating models in directory: {model_dir}")
+        # sort model paths by training steps in ascending order
+        model_paths = sorted(
+            [
+                os.path.join(model_dir, f)
+                for f in os.listdir(model_dir)
+                if f.endswith(".pt") and "best" not in f and "latest" not in f
+            ],
+            key=lambda x: int(os.path.basename(x).split(".")[0].split("_")[-1]),
+            reverse=False,
+        )
+        latest_model = os.path.join(model_dir, "model_latest.pt")
+        if os.path.exists(latest_model):
+            model_paths.append(latest_model)
+            
+        best_hpwl_list = []
+        for model_path in model_paths:
+            setattr(config, "model_path", model_path)
+            model.load_state_dict(torch.load(model_path))
+            best_hpwl = policy_track(args, config, model)
+            best_hpwl_list.append(best_hpwl)
+            
+        model_steps = [
+            str(os.path.basename(path).split(".")[0].split("_")[-1]) for path in model_paths
+        ]
+        
+        # Store results for this directory
+        all_results[model_dir] = {
+            'model_steps': model_steps,
+            'best_hpwl_list': best_hpwl_list
+        }
+        
+       
+    # plt.figure(figsize=(12, 6))
+    # plt.plot(model_steps, best_hpwl_list, marker='o', linestyle='-', linewidth=2, markersize=8)
 
-    model_steps = [str(os.path.basename(path).split('.')[0].split('_')[-1]) for path in model_paths]
+    # Create a single plot for all model directories
+    plt.figure(figsize=(15, 8))
     
-    plt.figure(figsize=(12, 6))
-    plt.plot(model_steps, best_hpwl_list, marker='o', linestyle='-', linewidth=2, markersize=8)
+    # Define colors and markers for different model directories
+    colors = plt.cm.tab10(np.linspace(0, 1, len(args.model_dir_pool)))
+    markers = ['o', 's', '^', 'D', 'v', '<', '>', 'p', '*', 'h']
     
-    plt.title('evaluation/best_found_hpwl_of_episode', fontsize=14)
+    for idx, (model_dir, results) in enumerate(all_results.items()):
+        model_steps = results['model_steps']
+        best_hpwl_list = results['best_hpwl_list']
+        
+        # Create x-axis positions for plotting
+        x_positions = list(range(len(model_steps)))
+        
+        # Plot with unique color and marker for each model directory
+        plt.plot(x_positions, best_hpwl_list, 
+                marker=markers[idx % len(markers)],
+                linestyle='-',
+                linewidth=2,
+                markersize=8,
+                color=colors[idx],
+                # label=os.path.basename(model_dir)
+                )
+        
+        # Add annotations for each point
+        for x_pos, step, hpwl in zip(x_positions, model_steps, best_hpwl_list):
+            plt.annotate(f'{hpwl:.2f}',
+                        (x_pos, hpwl),
+                        textcoords="offset points",
+                        xytext=(0,5),
+                        ha='center',
+                        fontsize=8)
+
+    plt.title('Best HPWL vs Training Steps for Gumbel Models in 15b', fontsize=14)
     plt.xlabel('Training Steps', fontsize=12)
     plt.ylabel('Best HPWL', fontsize=12)
+    # plt.grid(True, linestyle='--', alpha=0.7)
     
-    plt.xticks(rotation=45)
+    # Set x-axis ticks to show actual step values
+    plt.xticks(x_positions, model_steps, rotation=45)
     
-    for i, hpwl in enumerate(best_hpwl_list):
-        plt.annotate(f'{hpwl:.2f}', 
-                    (model_steps[i], hpwl),
-                    textcoords="offset points",
-                    xytext=(0,5),
-                    ha='center')
-    
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=10)
     plt.tight_layout()
 
-    plot_path = os.path.join(args.model_dir, 'c15b_non_fixed_init_2.png')
-    plt.savefig(plot_path)
+    # Save the plot in the current directory
+    plot_path = "combined_model_comparison.png"
+    plt.savefig(plot_path, bbox_inches='tight', dpi=300)
     plt.close()
-    
+
     ray.shutdown()
     print("Finished!")
