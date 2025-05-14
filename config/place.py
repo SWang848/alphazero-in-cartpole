@@ -41,7 +41,7 @@ class Config(BaseConfig):
         test_use_dirichlet: bool = False,
         value_support_min: int = -50,
         value_support_max: int = 0,
-        value_support_delta: int = 1,
+        value_support_delta: float = 1.0,
         value_transform: bool = True,
         log_dir: str = None,
         m_top: int = 8,
@@ -100,4 +100,4 @@ class Config(BaseConfig):
     def env_creator(self, simulator=False, log_dir=None, num_target_blocks=30):
         if log_dir is None:
             log_dir = self.log_dir
-        return gym.make("Swap-v0", log_dir=log_dir, simulator=simulator, num_target_blocks=num_target_blocks)
+        return gym.make("Classic-v0", log_dir=log_dir, simulator=simulator, num_target_blocks=num_target_blocks)

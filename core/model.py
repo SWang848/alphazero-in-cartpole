@@ -167,6 +167,8 @@ class ResModel(BaseModel):
         train_batch.to_torch(self.device)
 
         policy_logits, value_logits = self.forward(train_batch.obs)
+        # set the selected action to 1 in the action mask, only for the classicMDP
+        train_batch.action_mask.scatter_(1, train_batch.actions.unsqueeze(1), 1)
         masked_policy_logits = torch.where(
             train_batch.action_mask,
             policy_logits,

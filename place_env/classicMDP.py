@@ -59,10 +59,11 @@ class ClassicPlacement(Placement):
         board_image, place_infos = self._get_observation(block_index, x, y)
         
         reward = 0
-        hpwl = 0
+        hpwl = float('inf')
         done = False
         wirelength = 0
         truncated = False
+        action_mask = self.get_mask()
         
         if (self.num_step_episode == self.episode_step_limit - 1):
             done = True
@@ -79,7 +80,7 @@ class ClassicPlacement(Placement):
         self.cumulative_reward += 1**self.num_step_episode * reward
         self.num_step += 1
         self.num_step_episode += 1
-        action_mask = self.get_mask()
+        
         next_block = self.place_order[self.num_step_episode % self.num_blocks]
         
        
@@ -111,13 +112,11 @@ class ClassicPlacement(Placement):
         self.place_coords = self.init_place_coords.copy()
         self.board_image = self.init_board_image.copy()
         self.place_infos = self.init_place_infos.copy()
-
-
         (wire_term, critical_path_delay, wirelength) = (0, 0, 0)
 
         infos = {
             "placed_block": None,
-            "hpwl": 0,
+            "hpwl": float('inf'),
             "episode_steps": self.num_step_episode,
             "cumulative_reward": self.cumulative_reward,
             "wirelength": wirelength,
@@ -137,9 +136,10 @@ class ClassicPlacement(Placement):
                 self.num_step_episode % self.num_blocks
             ]
         
-        block_type = self.blocks_list.loc[self.blocks_list["index"] == block_index][
-            "type"
-        ].values[0]
+        # block_type = self.blocks_list.loc[self.blocks_list["index"] == block_index][
+        #     "type"
+        # ].values[0]
+        block_type = "clb"
         valid_positions = self.grid_constraints_dict[block_type].copy()
         for i, position in enumerate(self.place_coords):
             if ( 
