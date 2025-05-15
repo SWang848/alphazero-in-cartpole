@@ -9,8 +9,18 @@
 #     done
 # done
 
-for seed in 12 0 8764 723 529; do
-    sbatch CC_script.sh $seed
+# for seed in 12 0 8764 723 529; do
+#     sbatch CC_script.sh $seed
+# done
+
+for lr in 5e-4 1e-4 5e-5; do
+    for c_init in 2.5 2 3; do
+        for c_scale in 0.1 0.5 1; do
+            for seed in 0 10 100; do
+                sbatch CC_script.sh $lr $c_init $c_scale $seed
+            done
+        done
+    done
 done
 
 # ppo script
