@@ -25,7 +25,13 @@ export data=$SLURM_TMPDIR/data
 
 export HEAD_NODE=$(ip route get 1 | awk '{print $7; exit}')
 export BASE_PORT=10000
-export RAY_PORT=$((BASE_PORT + SLURM_JOB_ID % 1000))
+export RAY_PORT=$(python3 -c "
+import socket
+with socket.socket() as s:
+    s.bind(('', 0))
+    port = s.getsockname()[1]
+    print(port)
+")
 
 module load python/3.10
 module load cuda
