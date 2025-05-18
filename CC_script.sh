@@ -2,7 +2,7 @@
 #SBATCH --nodes=1
 #SBATCH --gpus-per-node=1
 #SBATCH --ntasks-per-node=12
-#SBATCH --mem=80G
+#SBATCH --mem=30G
 #SBATCH --time=72:00:00
 #SBATCH --account=rrg-mtaylor3
 #SBATCH --output=/home/shang8/scratch/slurm_out/%A.out
@@ -40,6 +40,6 @@ wandb offline
 
 ray start --head --node-ip-address=$HEAD_NODE --port=$RAY_PORT --include-dashboard=false --metrics-export-port=0 --num-cpus=12 --num-gpus=1
 
-PYTHONUNBUFFERED=1 python3 -u main.py  --wandb --cc --group_name c30b_gumbel_classic_cc  --amp  --env Classic-v0 --seed 0 --num_rollout_workers 10 --num_cpus_per_worker 1.2 --num_envs_per_worker 20 --num_gpus_per_worker 0.1 --min_num_episodes_per_worker 20 --num_target_blocks 30 --num_simulations 150  --training_steps 50 --c_init $2 --lr $1 --value_support_min -1 --value_support_max 0 --value_support_delta 0.1 --m_top 16 --c_visit 41 --c_scale $3
+PYTHONUNBUFFERED=1 python3 -u main.py --cc --wandb --group_name c5b_gumbel_cc_classic_kl --amp --env Classic-v0 --seed 0 --num_rollout_workers 10 --num_cpus_per_worker 1.2 --num_envs_per_worker 20 --num_gpus_per_worker 0.1 --min_num_episodes_per_worker 20 --num_target_blocks 5 --num_simulations 20 --training_steps 10 --c_init $2 --lr $1 --value_support_min -1 --value_support_max 0 --value_support_delta 0.1 --m_top 4 --c_visit 8 --c_scale $3
 
 cp -r $results/* /home/shang8/scratch/alphazero-in-cartpole/results/

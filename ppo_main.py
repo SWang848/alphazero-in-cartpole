@@ -142,46 +142,46 @@ if __name__ == "__main__":
             )
             num_steps += 1
             
-            if np.any(done):
-                workers_index = np.where(done == True)[0]
-                print(
-                    "Worker {} done in {} steps, with hpwl {}, with wirelength {}, with cumulative reward {}".format(
-                        "/".join([str(item) for item in workers_index]),
-                        "/".join(
-                            [
-                                str(item)
-                                for item in [
-                                    infos["episode_steps"][i] for i in workers_index
-                                ]
-                            ]
-                        ),
-                        "/".join(
-                            [
-                                str(item)
-                                for item in [
-                                    round(infos["hpwl"][i], 2) for i in workers_index
-                                ]
-                            ]
-                        ),
-                        "/".join(
-                            [
-                                str(item)
-                                for item in [
-                                    infos["wirelength"][i] for i in workers_index
-                                ]
-                            ]
-                        ),
-                        "/".join(
-                            [
-                                str(item)
-                                for item in [
-                                    round(infos["cumulative_reward"][i], 2)
-                                    for i in workers_index
-                                ]
-                            ]
-                        ),
-                    )
-                )
+            # if np.any(done):
+            #     workers_index = np.where(done == True)[0]
+            #     print(
+            #         "Worker {} done in {} steps, with hpwl {}, with wirelength {}, with cumulative reward {}".format(
+            #             "/".join([str(item) for item in workers_index]),
+            #             "/".join(
+            #                 [
+            #                     str(item)
+            #                     for item in [
+            #                         infos["episode_steps"][i] for i in workers_index
+            #                     ]
+            #                 ]
+            #             ),
+            #             "/".join(
+            #                 [
+            #                     str(item)
+            #                     for item in [
+            #                         round(infos["hpwl"][i], 2) for i in workers_index
+            #                     ]
+            #                 ]
+            #             ),
+            #             "/".join(
+            #                 [
+            #                     str(item)
+            #                     for item in [
+            #                         infos["wirelength"][i] for i in workers_index
+            #                     ]
+            #                 ]
+            #             ),
+            #             "/".join(
+            #                 [
+            #                     str(item)
+            #                     for item in [
+            #                         round(infos["cumulative_reward"][i], 2)
+            #                         for i in workers_index
+            #                     ]
+            #                 ]
+            #             ),
+            #         )
+            #     )
         
         (
             value_loss,

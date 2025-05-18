@@ -15,7 +15,7 @@
 
 for lr in 5e-4 1e-4 5e-5; do
     for c_init in 1.5 2 2.5; do
-        for c_scale in 1 5; do
+        for c_scale in 0.1 1; do
             sbatch CC_script.sh $lr $c_init $c_scale
         done
     done
