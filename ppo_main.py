@@ -36,7 +36,7 @@ def set_seed(seed):
         
 if __name__ == "__main__":
     parser = ArgumentParser("PPO Place, GO")
-    parser.add_argument("--env", type=str, default="Swap-v0", help="Name of environment.")
+    parser.add_argument("--env", type=str, default="Classic-v0", help="Name of environment.")
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--seed", type=int, default=0)
@@ -45,10 +45,10 @@ if __name__ == "__main__":
     parser.add_argument("--group_name", default="default", type=str)
     parser.add_argument("--results_dir", default="results")
     parser.add_argument("--rollout_size", default=64, type=int, help="Number of steps per rollout.")
-    parser.add_argument("--total_timesteps", default=128000, type=int, help="Total timesteps for training.")
+    parser.add_argument("--total_timesteps", default=20000, type=int, help="Total timesteps for training.")
     parser.add_argument("--evaluation_interval", default=10, type=int, help="Interval for model evaluation.")
-    parser.add_argument("--save_interval", default=20, type=int, help="Interval for saving the model.")
-    parser.add_argument("--num_target_blocks", default=15, type=int, help="Number of target blocks needed to place.")
+    parser.add_argument("--save_interval", default=20000, type=int, help="Interval for saving the model.")
+    parser.add_argument("--num_target_blocks", default=5, type=int, help="Number of target blocks needed to place.")
     parser.add_argument("--num_envs", default=4, type=int, help="Number of environments.")
     parser.add_argument("--mini_batch_size", default=32, type=int, help="Mini-batch size.")
     parser.add_argument("--lr_a", default=1e-4, type=float, help="Learning rate for the actor.")
@@ -127,7 +127,6 @@ if __name__ == "__main__":
                 board_image,
                 action_mask,
             )
-
             observation_, reward, done, truncated, infos = envs.step(action)
 
             rollouts.insert(
