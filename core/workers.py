@@ -75,9 +75,9 @@ class MCTSWorker:
         current_best_found = {"hpwl": float("inf"), "reward": None, "state": None}
         while not all(finished):
             # Prepare roots
-            priors, _, roots_logits = self.model.compute_priors_and_values(mcts_windows)
+            priors, values, roots_logits = self.model.compute_priors_and_values(mcts_windows)
 
-            roots.prepare(mcts_windows, priors, roots_logits)
+            roots.prepare(mcts_windows, priors, values, roots_logits)
             windows = deepcopy(mcts_windows)
 
             selected_actions, roots_values, roots_q_values, best_found = (
@@ -212,9 +212,9 @@ class RolloutWorker(MCTSWorker):
         while True:
             # Check if training finished
             update_step = ray.get(self.storage.get_counter.remote())
-            if update_step >= self.config.training_steps:
-                time.sleep(30)
-                break
+            # if update_step >= self.config.training_steps:
+            #     time.sleep(30)
+            #     break
 
             if collect_update_step == update_step:
                 time.sleep(5)

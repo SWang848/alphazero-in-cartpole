@@ -15,6 +15,7 @@ from core.storage import SharedStorage
 
 def train(args, config: BaseConfig, model, summary_writer, log_dir):
     print("Starting training...")
+    start_time = time.time()  # Track start time
     if args.cc:
         ray.init(
             address=f"{os.environ['HEAD_NODE']}:{os.environ['RAY_PORT']}",
@@ -31,9 +32,10 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
         weight_decay=config.weight_decay,
     )
     scaler = torch.cuda.amp.GradScaler(enabled=args.amp)
-    scheduler = torch.optim.lr_scheduler.LinearLR(
-        optimizer, 1.0, 0.1, total_iters=config.training_steps * config.num_sgd_iter
-    )
+    # scheduler = torch.optim.lr_scheduler.LinearLR(
+    #     optimizer, 1.0, 0.1, total_iters=config.training_steps * config.num_sgd_iter
+    # )
+    scheduler = None
 
     model.train()
 
@@ -52,7 +54,8 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
  
     storage.set_start_signal.remote()
 
-    for train_step in range(config.training_steps):
+    train_step = 0
+    while time.time() - start_time < config.max_training_time:  # Run until max time is reached
         print(f"Training step {train_step}...")
 
         while True:  # Wait until RolloutWorkers collected their samples
@@ -73,14 +76,9 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
         print("Updating weights...")
         for i in range(config.num_sgd_iter):
             print(f"SGD step {i}...")
-            # if demonstration_buffer is None:  # Uncomment for AlphaTensor-like training
             train_batch, _ = ray.get(
                 replay_buffer.sample.remote(config.batch_size, config.frame_stack)
             )
-            # else:
-            #    train_batch, _ = ray.get(replay_buffer.sample.remote(int(config.batch_size * 0.7), config.frame_stack))
-            #    demo_batch, _ = ray.get(demonstration_buffer.sample.remote(int(config.batch_size * 0.3), config.frame_stack))
-            #    train_batch.fuse_inplace(demo_batch)
 
             for mini_batch in train_batch:
                 total_loss, policy_loss, value_loss = model.update_weights(
@@ -109,6 +107,7 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
         
         if args.wandb and not args.debug:
             print(wandb_logs)
+            current_time = int(time.time() - start_time)  # Convert to integer
             wandb.log(
                 {   
                     "rollout/avg_end_of_episode_hpwl": mean(
@@ -125,7 +124,8 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
                     "train/policy_loss": mean(policy_losses),
                     "train/value_loss": mean(value_losses),
                     "train/replay_buffer_size": replay_buffer_size,
-                }
+                },
+                step=current_time
             )
 
         summary_writer.add_scalar("train/total_loss", mean(total_losses), train_step)
@@ -141,8 +141,9 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
 
         storage.reset_workers_finished.remote()
         storage.incr_counter.remote()
+        train_step += 1
 
-    ray.wait(workers)
+    # ray.wait(workers)
     print("Training finished!")
     torch.save(model.state_dict(), os.path.join(log_dir, f"model_latest.pt"))
     best_found = ray.get(storage.get_best_found.remote())

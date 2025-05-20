@@ -228,7 +228,15 @@ def set_place_order(blocks_list, num_placed_blocks, type="default"):
             by="connections", ascending=False
         )
         return sorted_df["index"].to_list()
-
+    elif type == "source":
+        sorted_df = blocks_list[:num_placed_blocks].sort_values(
+            by="source", ascending=False
+        )
+        return sorted_df["index"].to_list()
+    elif type == "sink":
+        sorted_df = blocks_list[:num_placed_blocks].sort_values(
+            by="sink", ascending=False
+        )
 
 class Preprocess:
     def __init__(

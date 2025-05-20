@@ -53,6 +53,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_envs_per_worker", default=5, type=int)
     parser.add_argument("--min_num_episodes_per_worker", default=20, type=int)
     parser.add_argument("--training_steps", default=10, type=int)
+    parser.add_argument("--max_training_time", default=900, type=int)
     parser.add_argument("--batch_size", default=64, type=int)
     parser.add_argument("--non_fixed_init", action="store_true")
     parser.add_argument("--value_support_min", default=-1, type=int)
@@ -60,7 +61,7 @@ if __name__ == "__main__":
     parser.add_argument("--value_support_delta", default=0.1, type=float)
     parser.add_argument("--m_top", default=4, type=int)
     parser.add_argument("--c_visit", default=8, type=int)
-    parser.add_argument("--c_scale", default=1, type=float)
+    parser.add_argument("--c_scale", default=1.0, type=float)
     args = parser.parse_args()
 
     set_seed(args.seed)
