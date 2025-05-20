@@ -37,6 +37,7 @@ class Node:
         state,
         priors: np.ndarray,
         logits: np.ndarray = None,
+        value: float = None,
     ):
         self.obs = obs
         self.reward = reward
@@ -44,6 +45,7 @@ class Node:
         self.env_state = state
         self.info = info
         self.child_logits = logits
+        self.v_approx = value
         if terminal:
             return
 
@@ -53,8 +55,9 @@ class Node:
 
         self.expanded = True
 
-    def add_child_logits(self, logits):
+    def add_child_logits_value(self, logits, value):
         self.child_logits = logits
+        self.v_approx = value
 
     def add_exploration_noise(self, noise, exploration_fraction):
         self.child_priors = np.where(
@@ -67,8 +70,12 @@ class Node:
     def child_number_visits(self):
         return np.array([child.num_visits for _, child in self.children.items()])
 
-    def child_values(self, min_max_stats, mean_q=None):
+    def child_values(self, min_max_stats, mean_q=None, complete_q=False):
         values = []
+        visits_sum = 0
+        sum_priors = 0
+        pi_q_sum = 0
+            
         accu = max if self.config.max_reward_return else sum
         for _, child in self.children.items():
             child_value = child.mean_value()
@@ -76,6 +83,9 @@ class Node:
                 child_value = min_max_stats.normalize(
                     accu([child.reward, self.config.gamma * child_value])
                 )
+                sum_priors += self.child_priors[child.action]
+                visits_sum += child.num_visits
+                pi_q_sum += child_value * self.child_priors[child.action]
             else:
                 if mean_q is not None:
                     child_value = min_max_stats.normalize(mean_q)
@@ -84,6 +94,12 @@ class Node:
             # clip child_value to [0, 1] to avoid out of range
             child_value = min(max(child_value, 0.0), 1.0)
             values.append(child_value)
+
+        if complete_q:
+            v_mix = (1/(1+visits_sum))*(self.v_approx+(visits_sum/sum_priors)*pi_q_sum)
+            for i, child in self.children.items():
+                if child.num_visits == 0:
+                    values[i] = v_mix   
         return np.array(values)  # Return normalized values
 
     def mean_value(self):
@@ -144,18 +160,19 @@ class BatchTree:
 
         self.node_hash_tables = [{} for _ in range(root_num)]
 
-    def prepare(self, mcts_windows, priors, logits):
+    def prepare(self, mcts_windows, priors, values, logits):
         for i in range(self.root_num):
             prior = priors[i]
+            value = values[i]
             state = mcts_windows[i].env_state
             root = self.roots[i]
             root.num_visits += 1
             info = mcts_windows[i].infos[0]
             logit = logits[i]
             if not root.expanded and not root.terminal:
-                root.expand(mcts_windows[i].obs, None, False, info, state, prior, logit)
+                root.expand(mcts_windows[i].obs, None, False, info, state, prior, logit, value)
             elif not root.terminal and root.child_logits is None:
-                root.add_child_logits(logit)
+                root.add_child_logits_value(logit, value)
 
     def traverse(self, mcts_windows, min_max_stats, designed_search_nodes=None):
         trajectories = []
@@ -394,9 +411,9 @@ class MCTS:
 
         # Get final selected actions and values
         selected_actions = [children[0].action for children in selected_children]
-        root_q_values = [
-            roots.roots[i].child_values(min_max_stats[i], roots.roots[i].mean_q(0))
+        roots_q_values = [
+            roots.roots[i].child_values(min_max_stats[i], roots.roots[i].mean_q(0), complete_q=True)
             for i in range(roots.root_num)
         ]
 
-        return selected_actions, roots.get_values(), root_q_values, best_found
+        return selected_actions, roots.get_values(), roots_q_values, best_found

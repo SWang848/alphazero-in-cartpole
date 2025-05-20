@@ -184,7 +184,7 @@ class ResModel(BaseModel):
         selected_log_probs = log_probs.gather(1, train_batch.actions.unsqueeze(1)).squeeze()
         simple_policy_loss = -selected_log_probs.mean()
         sigma_q_transform = (
-            (self.config.c_visit + 50)
+            (self.config.c_visit + 8)
             * self.config.c_scale
             * train_batch.root_q_values
         )
@@ -196,8 +196,8 @@ class ResModel(BaseModel):
         masked_kl = pi_target[train_batch.action_mask] * (
             log_pi_target[train_batch.action_mask] - log_pi_policy[train_batch.action_mask]
         )
-        policy_loss = torch.mean(masked_kl) + simple_policy_loss
-        # policy_loss = simple_policy_loss
+        # policy_loss = torch.mean(masked_kl)
+        policy_loss = simple_policy_loss
         value_loss = -(
             torch.log_softmax(value_logits, dim=1) * value_targets_phi
         ).mean()
