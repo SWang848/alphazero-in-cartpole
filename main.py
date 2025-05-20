@@ -47,6 +47,7 @@ if __name__ == "__main__":
     parser.add_argument("--group_name", default="default", type=str)
     parser.add_argument("--seed", default=0, type=int)
     parser.add_argument("--num_target_blocks", default=5, type=int)
+    parser.add_argument("--place_order", default="default", type=str)
     parser.add_argument("--lr", default=5e-4, type=float)
     parser.add_argument("--c_init", default=2, type=float)
     parser.add_argument("--num_simulations", default=20, type=int)

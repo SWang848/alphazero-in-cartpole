@@ -11,6 +11,7 @@ class Config(BaseConfig):
     def __init__(
         self,
         num_target_blocks: int = 30,
+        place_order: str = "default",
         non_fixed_init: bool = False,
         training_steps: int = 15,
         pretrain_steps: int = 0,
@@ -86,6 +87,7 @@ class Config(BaseConfig):
         )
         # rewrote by user agruments in the main.py 
         self.log_dir = log_dir
+        self.place_order = place_order
         self.num_target_blocks = num_target_blocks
         self.non_fixed_init = non_fixed_init
 
@@ -97,7 +99,7 @@ class Config(BaseConfig):
         model.to(device)
         return model
 
-    def env_creator(self, simulator=False, log_dir=None, num_target_blocks=30):
+    def env_creator(self, simulator=False, log_dir=None, num_target_blocks=30, place_order="default"):
         if log_dir is None:
             log_dir = self.log_dir
-        return gym.make("Classic-v0", log_dir=log_dir, simulator=simulator, num_target_blocks=num_target_blocks)
+        return gym.make("Classic-v0", log_dir=log_dir, simulator=simulator, num_target_blocks=num_target_blocks, place_order=place_order)

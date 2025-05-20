@@ -23,7 +23,7 @@ class Placement(gym.Env):
     orange = (255, 229, 153)
 
     def __init__(
-        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30
+        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30, place_order="default"
     ):
         # metadata = {"render.modes": ["human"]}
 
@@ -44,6 +44,7 @@ class Placement(gym.Env):
             primitive_netlist_file_path=os.path.join(self.data_dir, "primitive.netlist"),
             grid_constraint_path=os.path.join(self.data_dir, "grid.constraint"),
             blocks_place_file_path=os.path.join(self.data_dir, "tseng.place"),
+            order=place_order
         )
 
         # chip information preprocess
