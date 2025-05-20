@@ -15,7 +15,6 @@ from core.storage import SharedStorage
 
 def train(args, config: BaseConfig, model, summary_writer, log_dir):
     print("Starting training...")
-    start_time = time.time()  # Track start time
     if args.cc:
         ray.init(
             address=f"{os.environ['HEAD_NODE']}:{os.environ['RAY_PORT']}",
@@ -24,7 +23,8 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
     else:
         ray.init()
     print("Ray initialized")
-
+    start_time = time.time()  # Track start time
+    
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=config.lr,
@@ -32,10 +32,10 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
         weight_decay=config.weight_decay,
     )
     scaler = torch.cuda.amp.GradScaler(enabled=args.amp)
-    # scheduler = torch.optim.lr_scheduler.LinearLR(
-    #     optimizer, 1.0, 0.1, total_iters=config.training_steps * config.num_sgd_iter
-    # )
-    scheduler = None
+    scheduler = torch.optim.lr_scheduler.LinearLR(
+        optimizer, 1.0, 0.1, total_iters=config.training_steps * config.num_sgd_iter
+    )
+    # scheduler = None
 
     model.train()
 

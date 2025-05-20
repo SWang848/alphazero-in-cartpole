@@ -52,7 +52,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_simulations", default=20, type=int)
     parser.add_argument("--num_envs_per_worker", default=5, type=int)
     parser.add_argument("--min_num_episodes_per_worker", default=20, type=int)
-    parser.add_argument("--training_steps", default=10, type=int)
+    parser.add_argument("--training_steps", default=30, type=int)
     parser.add_argument("--max_training_time", default=900, type=int)
     parser.add_argument("--batch_size", default=64, type=int)
     parser.add_argument("--non_fixed_init", action="store_true")
@@ -65,12 +65,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     set_seed(args.seed)
-
     sub_dir = datetime.now().strftime("%d%m%Y_%H%M")
     sub_dir = f"{args.env}_{sub_dir}_{random.randint(0, 9999)}"
     # if program is run on CC, save logs to the local disk.
     if args.cc:
-        sub_dir = f"{args.group_name}_{args.seed}_{random.randint(0, 999)}"
+        sub_dir = f"{args.group_name}_{os.environ['sub_dir']}"
         log_dir = f"{os.environ['results']}/{sub_dir}"
     else:
         if args.debug:
