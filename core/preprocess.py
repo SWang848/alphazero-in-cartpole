@@ -237,6 +237,7 @@ def set_place_order(blocks_list, num_placed_blocks, type="default"):
         sorted_df = blocks_list[:num_placed_blocks].sort_values(
             by="sink", ascending=False
         )
+        return sorted_df["index"].to_list()
 
 class Preprocess:
     def __init__(
@@ -364,6 +365,7 @@ if __name__ == "__main__":
         os.path.join("/home/swang848/RL-FPGA/", "data/primitive.netlist"),
         os.path.join("/home/swang848/RL-FPGA/", "data/grid.constraint"),
         os.path.join("/home/swang848/RL-FPGA/", "data/tseng.place"),
+        order="sink"
     )
     # grid_constraints_dict = process.get_grid_constraints_dict()
     # print(grid_constraints_dict)
@@ -371,6 +373,7 @@ if __name__ == "__main__":
     block_list = preprocess.blocks_list
     print(preprocess.grid_constraints_dict)
     print(block_list.loc[block_list["index"] == 10])
+    print(preprocess.place_order)
     # print(block_list)
     # print(preprocess.grid_constraints_dict)
     # netlist_dict = preprocess.netlist_dict
