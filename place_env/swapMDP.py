@@ -81,7 +81,7 @@ class SwapPlacement(Placement):
 
         hpwl = self.calculate_hpwl()
         reward = self.hpwl_reward(hpwl)
-        reward = self.hpwl_diff_reward(last_hpwl, hpwl)
+        # reward = self.hpwl_diff_reward(last_hpwl, hpwl)
         # if action == self.cheat_trajectory[self.num_step_episode]:
         #     reward = 0.0
         done = False

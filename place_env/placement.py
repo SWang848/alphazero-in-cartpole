@@ -23,7 +23,7 @@ class Placement(gym.Env):
     orange = (255, 229, 153)
 
     def __init__(
-        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30
+        self, log_dir, simulator=False, render_mode=None, num_target_blocks=30, place_order="default"
     ):
         # metadata = {"render.modes": ["human"]}
 
@@ -44,6 +44,7 @@ class Placement(gym.Env):
             primitive_netlist_file_path=os.path.join(self.data_dir, "primitive.netlist"),
             grid_constraint_path=os.path.join(self.data_dir, "grid.constraint"),
             blocks_place_file_path=os.path.join(self.data_dir, "tseng.place"),
+            order=place_order
         )
 
         # chip information preprocess
@@ -102,6 +103,15 @@ class Placement(gym.Env):
             )
             self.font = pygame.font.Font(None, 24)
 
+        # Add to initialization
+        self._hpwl_ranges = {
+            5: (2733, 3362),   # best_hpwl, max_hpwl
+            15: (2600, 4300),
+            30: (2600, 4900),
+            45: (2600, 5600),
+            56: (2600, 5700)
+        }
+
     def step(self):
         raise NotImplementedError("subclasses must implement this method")
 
@@ -129,36 +139,13 @@ class Placement(gym.Env):
         return hpwl_total
         
     def hpwl_reward(self, hpwl):
+        # Get precomputed values instead of if-elif chain
+        best_hpwl, max_hpwl = self._hpwl_ranges.get(self.num_blocks)
         
-        if self.num_blocks == 5:
-            # 5 blocks hpwl range
-            best_hpwl = 2733
-            max_hpwl = 3362
-        elif self.num_blocks == 15:
-            # 15 blocks hpwl range
-            best_hpwl = 2600
-            max_hpwl = 4300
-        elif self.num_blocks == 30:
-            # 30 blocks hpwl range
-            best_hpwl = 2600
-            max_hpwl = 4900
-        elif self.num_blocks == 45:
-            # 45 blocks hpwl range
-            best_hpwl = 2600
-            max_hpwl = 5600
-        elif self.num_blocks == 56:
-            # 56 blocks hpwl range
-            best_hpwl = 2600
-            max_hpwl = 5700
-
-        # scaled_reward = (best_hpwl_results - hpwl) / 1000
-        normalized_reward = ((hpwl - best_hpwl) / (max_hpwl - best_hpwl)) * 1
-        normalized_reward = max(0, min(1, normalized_reward))
-        normalized_reward = -normalized_reward
-
-        # normalized_reward = -hpwl / 1000
-
-        return normalized_reward
+        # Use pre-division for better numerical stability
+        range_inv = 1.0 / (max_hpwl - best_hpwl)
+        normalized_reward = (hpwl - best_hpwl) * range_inv
+        return -max(0, min(1, normalized_reward))
 
     def call_simulator(self, place_coords, width):
         fill_place_file(
@@ -208,7 +195,9 @@ class Placement(gym.Env):
     
     # for mcts simulation
     def set_state(self, state):
-        self = deepcopy(state)
+        # Copy all instance attributes from state
+        for key, value in state.__dict__.items():
+            setattr(self, key, deepcopy(value))
         return self
 
     # for mcts simulation
