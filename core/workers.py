@@ -32,6 +32,7 @@ class MCTSWorker:
             config.env_creator(
                 simulator=simulator, 
                 num_target_blocks=config.num_target_blocks, 
+                place_order=config.place_order
             )
             for _ in range(self.num_envs)
         ]
@@ -256,9 +257,9 @@ class RolloutWorker(MCTSWorker):
         while True:
             # Check if training finished
             update_step = ray.get(self.storage.get_counter.remote())
-            if update_step >= self.config.training_steps:
-                time.sleep(30)
-                break
+            # if update_step >= self.config.training_steps:
+            #     time.sleep(30)
+            #     break
 
             if collect_update_step == update_step:
                 time.sleep(5)

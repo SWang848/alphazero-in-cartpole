@@ -322,7 +322,7 @@ class MCTS:
     ):
         self.config = config
         self.model = model
-        self.env = config.env_creator(num_target_blocks=config.num_target_blocks)
+        self.env = config.env_creator(num_target_blocks=config.num_target_blocks, place_order=config.place_order)
 
     def search(self, roots, mcts_windows):
         # Do one step of Batch MCTS

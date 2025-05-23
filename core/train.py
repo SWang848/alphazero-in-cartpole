@@ -45,7 +45,8 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
     replay_buffer = ReplayBuffer.remote(config.replay_buffer_size)
     storage = SharedStorage.remote(config, args.amp)
     storage.set_weights.remote(model.get_weights())  # Broadcast model
-
+    start_time = time.time()
+    
     rollout_workers = [
         RolloutWorker.options(
             num_cpus=args.num_cpus_per_worker, num_gpus=args.num_gpus_per_worker
@@ -57,7 +58,9 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
  
     storage.set_start_signal.remote()
 
-    for train_step in range(config.training_steps):
+    train_step = 0
+    # for train_step in range(config.training_steps):
+    while time.time() - start_time < config.max_training_time:
         print(f"Training step {train_step}...")
         # if train_step >= config.training_steps:  # Check if we are done
         #     time.sleep(30)
@@ -117,6 +120,7 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
         
         if args.wandb and not args.debug:
             print(wandb_logs)
+            current_time = int(time.time() - start_time)
             wandb.log(
                 {   
                     "rollout/avg_end_of_episode_hpwl": mean(
@@ -133,7 +137,8 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
                     "train/policy_loss": mean(policy_losses),
                     "train/value_loss": mean(value_losses),
                     "train/replay_buffer_size": replay_buffer_size,
-                }
+                },
+                step=current_time
             )
 
         summary_writer.add_scalar("train/total_loss", mean(total_losses), train_step)
@@ -149,8 +154,9 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
 
         storage.reset_workers_finished.remote()
         storage.incr_counter.remote()
+        train_step += 1
 
-    ray.wait(workers)
+    # ray.wait(workers)
     print("Training finished!")
     torch.save(model.state_dict(), os.path.join(log_dir, f"model_latest.pt"))
     best_found = ray.get(storage.get_best_found.remote())
