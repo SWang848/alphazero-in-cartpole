@@ -9,8 +9,20 @@
 #     done
 # done
 
-for seed in 12 0 8764 723 529; do
-    sbatch CC_script.sh $seed
+# for seed in 12 0 8764 723 529; do
+#     sbatch CC_script.sh $seed
+# done
+
+# for lr in 5e-4 1e-4 5e-5; do
+#     for c_init in 1.5 2 2.5; do
+#         for c_scale in 0.1 1; do
+#             sbatch CC_script.sh $lr $c_init $c_scale
+#         done
+#     done
+# done
+
+for place_order in default source sink connections connections_; do
+    sbatch CC_script.sh $place_order
 done
 
 # ppo script
@@ -21,5 +33,3 @@ done
 #         done
 #     done
 # done
-
-
