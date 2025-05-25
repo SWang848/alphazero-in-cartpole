@@ -58,7 +58,7 @@ if __name__ == "__main__":
     parser.add_argument("--non_fixed_init", action="store_true")
     parser.add_argument("--value_support_min", default=-10, type=int)
     parser.add_argument("--value_support_max", default=0, type=int)
-    parser.add_argument("--value_support_delta", default=1, type=int)
+    parser.add_argument("--value_support_delta", default=1.0, type=float)
     parser.add_argument("--forced_exploration", action="store_true")
     parser.add_argument("--k", default=2.0, type=float)
     parser.add_argument("--percentage", default=0.2, type=float)
