@@ -70,7 +70,7 @@ if __name__ == "__main__":
     sub_dir = f"{args.env}_{sub_dir}_{random.randint(0, 9999)}"
     # if program is run on CC, save logs to the local disk.
     if args.cc:
-        sub_dir = f"{args.group_name}_{args.seed}_{random.randint(0, 999)}"
+        sub_dir = f"{args.group_name}_{os.environ['sub_dir']}"
         log_dir = f"{os.environ['results']}/{sub_dir}"
     else:
         if args.debug:
