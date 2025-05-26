@@ -245,7 +245,7 @@ if __name__ == "__main__":
             env = gym.make(
                 args.env,
                 log_dir=evaluation_path,
-                simulator=True,
+                simulator=False,
                 num_target_blocks=args.num_target_blocks
             )
 
