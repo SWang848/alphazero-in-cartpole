@@ -38,6 +38,6 @@ wandb offline
 #         --total_timesteps 256000 --rollout_size 64 --mini_batch_size 32
 
 export sub_dir="seed_$((RANDOM % 10000))"
-# PYTHONUNBUFFERED=1 python3 -u ppo_main.py --wandb --cc --group_name c15b_ppo_RL4RS --env Classic-v0 --seed 0 --num_target_blocks 15 --num_envs 10 --lr_a 5e-4 --lr_c 5e-4 --entropy_coef 1e-4 --max_training_time 10800 --rollout_size 512 --mini_batch_size 128 --place_order $1
-PYTHONUNBUFFERED=1 python3 -u ppo_main.py --wandb --cc --group_name c5b_ppo_RL4RS --env Classic-v0 --seed 0 --num_target_blocks 5 --num_envs 10 --lr_a 5e-4 --lr_c 5e-4 --entropy_coef 5e-3 --max_training_time 3600 --rollout_size 512 --mini_batch_size 128 --place_order $1
+PYTHONUNBUFFERED=1 python3 -u ppo_main.py --wandb --cc --group_name c15b_ppo_RL4RS --env Classic-v0 --seed 0 --num_target_blocks 15 --num_envs 10 --lr_a 5e-4 --lr_c 5e-4 --entropy_coef 1e-4 --max_training_time 10800 --rollout_size 512 --mini_batch_size 128 --place_order $1
+# PYTHONUNBUFFERED=1 python3 -u ppo_main.py --wandb --cc --group_name c5b_ppo_RL4RS --env Classic-v0 --seed 0 --num_target_blocks 5 --num_envs 10 --lr_a 5e-4 --lr_c 5e-4 --entropy_coef 5e-3 --max_training_time 3600 --rollout_size 512 --mini_batch_size 128 --place_order $1
 cp -r $results/* /home/shang8/scratch/alphazero-in-cartpole/results/
