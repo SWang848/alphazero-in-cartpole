@@ -49,7 +49,7 @@ if __name__ == "__main__":
     parser.add_argument("--rollout_size", default=64, type=int, help="Number of steps per rollout.")
     parser.add_argument("--total_timesteps", default=20000, type=int, help="Total timesteps for training.")
     parser.add_argument("--evaluation_interval", default=10, type=int, help="Interval for model evaluation.")
-    parser.add_argument("--save_interval", default=200, type=int, help="Interval for saving the model.")
+    parser.add_argument("--save_interval", default=100, type=int, help="Interval for saving the model.")
     parser.add_argument("--num_target_blocks", default=5, type=int, help="Number of target blocks needed to place.")
     parser.add_argument("--place_order", default="default", type=str)
     parser.add_argument("--num_envs", default=4, type=int, help="Number of environments.")
