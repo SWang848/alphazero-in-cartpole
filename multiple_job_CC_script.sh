@@ -22,7 +22,7 @@
 # done
 
 for place_order in default source sink connections connections_; do
-    sbatch CC_script.sh $place_order
+    sbatch CC_script-ppo.sh $place_order
 done
 
 # ppo script

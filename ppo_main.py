@@ -1,5 +1,6 @@
 import gym
 from gym.vector.async_vector_env import AsyncVectorEnv
+import time
 
 from argparse import ArgumentParser
 import os
@@ -15,13 +16,14 @@ import place_env
 from ppo.rollout import RolloutStorage
 from ppo.evaluation import evaluate
 
-def make_env(env_name, log_dir, simulator=False, num_target_blocks=15):
+def make_env(env_name, log_dir, simulator=False, num_target_blocks=15, place_order="default"):
     def thunk():
         env = gym.make(
             env_name,
             log_dir=log_dir,
             simulator=simulator,
-            num_target_blocks=num_target_blocks
+            num_target_blocks=num_target_blocks,
+            place_order=place_order
         )
         return env
 
@@ -47,8 +49,9 @@ if __name__ == "__main__":
     parser.add_argument("--rollout_size", default=64, type=int, help="Number of steps per rollout.")
     parser.add_argument("--total_timesteps", default=20000, type=int, help="Total timesteps for training.")
     parser.add_argument("--evaluation_interval", default=10, type=int, help="Interval for model evaluation.")
-    parser.add_argument("--save_interval", default=20000, type=int, help="Interval for saving the model.")
+    parser.add_argument("--save_interval", default=200, type=int, help="Interval for saving the model.")
     parser.add_argument("--num_target_blocks", default=5, type=int, help="Number of target blocks needed to place.")
+    parser.add_argument("--place_order", default="default", type=str)
     parser.add_argument("--num_envs", default=4, type=int, help="Number of environments.")
     parser.add_argument("--mini_batch_size", default=32, type=int, help="Mini-batch size.")
     parser.add_argument("--lr_a", default=1e-4, type=float, help="Learning rate for the actor.")
@@ -58,6 +61,7 @@ if __name__ == "__main__":
     parser.add_argument("--k_epochs", default=10, type=int, help="Number of epochs for training.")
     parser.add_argument("--entropy_coef", default=5e-3, type=float, help="Entropy coefficient for exploration.")
     parser.add_argument("--epsilon", default=0.2, type=float, help="Clip range for policy updates.")
+    parser.add_argument("--max_training_time", default=600, type=int)
 
     args = parser.parse_args()
     set_seed(args.seed)
@@ -66,6 +70,7 @@ if __name__ == "__main__":
     sub_dir = f"{args.env}_{sub_dir}_{random.randint(10, 99)}"
     # if program is run on CC, save logs to the local disk.
     if args.cc:
+        sub_dir = f"{args.group_name}_{os.environ['sub_dir']}"
         log_dir = f"{os.environ['results']}/{sub_dir}"
     else:
         if args.debug:
@@ -86,14 +91,16 @@ if __name__ == "__main__":
             group=args.group_name,
             config=args,
         )
-        
+    
+    start_time = time.time()
     envs = AsyncVectorEnv(
         [
             make_env(
                 env_name=args.env,
                 log_dir=log_dir,
                 simulator=False,
-                num_target_blocks=args.num_target_blocks
+                num_target_blocks=args.num_target_blocks,
+                place_order=args.place_order
             )
             for i in range(args.num_envs)
         ]
@@ -111,10 +118,12 @@ if __name__ == "__main__":
         device=args.device,
     )
     
-    num_steps = 0
     observation_, infos = envs.reset()
     
-    for i in range(0, args.total_timesteps // args.rollout_size):
+    best_hpwl_found = float("inf")
+    i = 0
+    while time.time() - start_time < args.max_training_time:
+    # for i in range(0, args.total_timesteps // args.rollout_size):
         for step in range(0, args.rollout_size):
             board_image, place_infos, block_index, action_mask = (
                 observation_["board_image"],
@@ -140,7 +149,6 @@ if __name__ == "__main__":
                 done,
                 action_mask,
             )
-            num_steps += 1
             
             # if np.any(done):
             #     workers_index = np.where(done == True)[0]
@@ -203,6 +211,7 @@ if __name__ == "__main__":
             )
         )
         if not args.debug and args.wandb:
+            current_time = int(time.time() - start_time)
             wandb.log(
                 {
                     "value_loss": value_loss,
@@ -212,7 +221,7 @@ if __name__ == "__main__":
                     "approx_kl": approx_kl,
                     "clipfracs": clipfracs,
                 },
-                step=i,
+                step=current_time,
             )
             
         if i % args.save_interval == 0:
@@ -248,6 +257,17 @@ if __name__ == "__main__":
             steps_episode_mean = np.mean(steps_episode)
             end_hpwl_mean = np.mean(end_hpwl)
             end_wirelength_mean = np.mean(end_wirelength)
+            
+            if end_hpwl_mean < best_hpwl_found:
+                best_hpwl_found = end_hpwl_mean
+                torch.save(
+                    agent.actor.state_dict(),
+                    os.path.join(log_dir, "best_actor.pth")
+                )
+                torch.save(
+                    agent.critic.state_dict(),
+                    os.path.join(log_dir, "best_critic.pth")
+                )
 
             print(
                 "The {}th evaluation, the mean cumulative reward is {}, the mean last hpwl/wirelength is {}/{}, the mean episode length is {}".format(
@@ -260,14 +280,16 @@ if __name__ == "__main__":
             )
 
             if not args.debug and args.wandb:
+                current_time = int(time.time() - start_time)
                 wandb.log(
                     {
                         "evaluation_cumulative_reward_mean": cumulative_reward_mean,
                         "evaluation_last_hpwl_mean": end_hpwl_mean,
                         "steps_episode_mean": steps_episode_mean,
                     },
-                    step=i,
+                    step=current_time,
                 )
-                
+        i += 1
+        
     if not args.debug and args.wandb:
         wandb.finish()
