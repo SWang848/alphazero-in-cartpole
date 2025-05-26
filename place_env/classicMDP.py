@@ -166,7 +166,7 @@ class ClassicPlacement(Placement):
         num_connections = self.blocks_list.loc[
             self.blocks_list["index"] == block_index
         ]["connections"].values[0]
-        self.board_image[0] += 1
+        self.board_image[0, coord_x, coord_y] += 1
         self.board_image[2, coord_x, coord_y] = 0
         self.board_image[3, coord_x, coord_y] = num_sink
         self.board_image[4, coord_x, coord_y] = num_source
