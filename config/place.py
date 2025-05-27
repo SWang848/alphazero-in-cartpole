@@ -11,6 +11,7 @@ class Config(BaseConfig):
     def __init__(
         self,
         num_target_blocks: int = 30,
+        place_order: str = "default",
         non_fixed_init: bool = False,
         training_steps: int = 15,
         pretrain_steps: int = 0,
@@ -88,7 +89,8 @@ class Config(BaseConfig):
         self.log_dir = log_dir
         self.num_target_blocks = num_target_blocks
         self.non_fixed_init = non_fixed_init
-
+        self.place_order = place_order
+        
     def init_model(self, device, amp):
         obs_shape = (self.obs_shape[0] * self.frame_stack,) + self.obs_shape[1:]
         num_act = self.action_shape
