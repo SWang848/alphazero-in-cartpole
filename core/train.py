@@ -42,7 +42,8 @@ def train(args, config: BaseConfig, model, summary_writer, log_dir):
     replay_buffer = ReplayBuffer.remote(config.replay_buffer_size)
     storage = SharedStorage.remote(config, args.amp)
     storage.set_weights.remote(model.get_weights())  # Broadcast model
-
+    start_time = time.time()
+    
     rollout_workers = [
         RolloutWorker.options(
             num_cpus=args.num_cpus_per_worker, num_gpus=args.num_gpus_per_worker

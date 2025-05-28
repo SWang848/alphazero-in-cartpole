@@ -90,7 +90,8 @@ class Config(BaseConfig):
         self.place_order = place_order
         self.num_target_blocks = num_target_blocks
         self.non_fixed_init = non_fixed_init
-
+        self.place_order = place_order
+        
     def init_model(self, device, amp):
         obs_shape = (self.obs_shape[0] * self.frame_stack,) + self.obs_shape[1:]
         num_act = self.action_shape

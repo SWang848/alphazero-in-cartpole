@@ -11,6 +11,7 @@ test*
 /test
 /evaluation
 /saved_weights
+RL4RS/*
 *.png
 *.jpg
 *.jpeg
