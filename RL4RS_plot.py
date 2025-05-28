@@ -69,7 +69,7 @@ def extract_place_order(model_dir):
     # Example: c5b_gumbel_RL4RS_connections__5371 -> connections_
     parts = os.path.basename(model_dir).split('_')
     for part in parts:
-        if part in ['connections', 'seed', 'sink', 'source']:
+        if part in ['connections', 'seed', 'sink', 'source', 'default']:
             return part + '_'
 
 if __name__ == "__main__":
@@ -83,11 +83,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model_dir_pool",
         nargs="+", 
-        default=["/home/swang848/efficientalphazero/results_RL4RS/c5b_gumbel_RL4RS_connections__5371",
-                 "/home/swang848/efficientalphazero/results_RL4RS/c5b_gumbel_RL4RS_connections_420",
-                 "/home/swang848/efficientalphazero/results_RL4RS/c5b_gumbel_RL4RS_seed_1882",
-                 "/home/swang848/efficientalphazero/results_RL4RS/c5b_gumbel_RL4RS_sink_5224",
-                 "/home/swang848/efficientalphazero/results_RL4RS/c5b_gumbel_RL4RS_source_1664"],
+        default=["/home/swang848/efficientalphazero/results_RL4RS/c15b_mcts_RL4RS_connections__7119",
+                 "/home/swang848/efficientalphazero/results_RL4RS/c15b_mcts_RL4RS_connections_3805",
+                 "/home/swang848/efficientalphazero/results_RL4RS/c15b_mcts_RL4RS_default_5843",
+                 "/home/swang848/efficientalphazero/results_RL4RS/c15b_mcts_RL4RS_sink_342",
+                 "/home/swang848/efficientalphazero/results_RL4RS/c15b_mcts_RL4RS_source_1344"],
         help="List of model directories to evaluate"
     )
     parser.add_argument("--device_workers", default="cuda", type=str)
@@ -98,9 +98,12 @@ if __name__ == "__main__":
     parser.add_argument("--num_target_blocks", default=15, type=int)
     parser.add_argument("--c_init", default=3.0, type=float)
     parser.add_argument("--num_envs_per_worker", default=1, type=int)
-    parser.add_argument("--value_support_min", default=-10, type=int)
+    parser.add_argument("--value_support_min", default=-1, type=int)
     parser.add_argument("--value_support_max", default=0, type=int)
-    parser.add_argument("--value_support_delta", default=1.0, type=float)
+    parser.add_argument("--value_support_delta", default=0.1, type=float)
+    parser.add_argument("--forced_exploration", action="store_true")
+    parser.add_argument("--k", default=2.0, type=float)
+    parser.add_argument("--percentage", default=0.2, type=float)
     args = parser.parse_args()
 
     sub_dir = datetime.now().strftime("%d%m%Y_%H%M")
@@ -144,10 +147,7 @@ if __name__ == "__main__":
             continue
             
         # Initialize config with the extracted place order
-        config = Config(
-            log_dir=log_dir,
-            place_order=place_order
-        )
+        config = Config(log_dir=log_dir, value_support_max=args.value_support_max, value_support_min=args.value_support_min)
         
         # Apply command line arguments to config
         for arg, arg_val in vars(args).items():

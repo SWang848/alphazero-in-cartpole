@@ -13,7 +13,7 @@ sns.set_theme(style="whitegrid", rc={"figure.facecolor": "white", "axes.facecolo
 COLORS = {
     'gumbel': '#2E86C1',  # Soft blue
     'mcts': '#E91E63',    # Pink
-    'ppo': '#00BCD4',     # Teal
+    'ppo': '#03C04A',     # green
     'vtr': '#FF9800'      # Orange
 }
 
@@ -31,7 +31,6 @@ def load_data(directory):
             df = pd.read_csv(file)
             # Normalize timestamps to start from 0
             time_values = df[df.columns[0]].values
-            time_values = time_values - time_values[0]  # Subtract the first value to start from 0
             timestamps.append(time_values)
             values.append(df[df.columns[1]].values)
         except Exception as e:
@@ -69,18 +68,18 @@ all_timestamps_15 = gumbel_timestamps_15 + mcts_timestamps_15 + ppo_timestamps_1
 min_end_time_15 = min(ts[-1] for ts in all_timestamps_15)
 
 # Truncate all datasets to end at their respective minimum end times
-gumbel_timestamps_5, gumbel_values_5 = truncate_to_time(gumbel_timestamps_5, gumbel_values_5, min_end_time_5)
-mcts_timestamps_5, mcts_values_5 = truncate_to_time(mcts_timestamps_5, mcts_values_5, min_end_time_5)
-ppo_timestamps_5, ppo_values_5 = truncate_to_time(ppo_timestamps_5, ppo_values_5, min_end_time_5)
+# gumbel_timestamps_5, gumbel_values_5 = truncate_to_time(gumbel_timestamps_5, gumbel_values_5, min_end_time_5)
+# mcts_timestamps_5, mcts_values_5 = truncate_to_time(mcts_timestamps_5, mcts_values_5, min_end_time_5)
+# ppo_timestamps_5, ppo_values_5 = truncate_to_time(ppo_timestamps_5, ppo_values_5, min_end_time_5)
 
-gumbel_timestamps_15, gumbel_values_15 = truncate_to_time(gumbel_timestamps_15, gumbel_values_15, min_end_time_15)
-mcts_timestamps_15, mcts_values_15 = truncate_to_time(mcts_timestamps_15, mcts_values_15, min_end_time_15)
-ppo_timestamps_15, ppo_values_15 = truncate_to_time(ppo_timestamps_15, ppo_values_15, min_end_time_15)
+# gumbel_timestamps_15, gumbel_values_15 = truncate_to_time(gumbel_timestamps_15, gumbel_values_15, min_end_time_15)
+# mcts_timestamps_15, mcts_values_15 = truncate_to_time(mcts_timestamps_15, mcts_values_15, min_end_time_15)
+# ppo_timestamps_15, ppo_values_15 = truncate_to_time(ppo_timestamps_15, ppo_values_15, min_end_time_15)
 
 # Function to process and plot data
 def process_and_plot_data(timestamps, values, color, label, min_end_time):
     # Choose common timestamps covering all data
-    min_time = 0  # Start from 0
+    min_time = min(t[0] for t in timestamps)  # Use the real minimum time of each training dataset
     max_time = min_end_time  # Use the minimum end time we found
     common_time = np.linspace(min_time, max_time, 100)
 
@@ -115,8 +114,9 @@ ax1.fill_between(mcts_time_5, mcts_min_5, mcts_max_5, color=COLORS['mcts'], alph
 ax1.plot(ppo_time_5, ppo_mean_5, color=COLORS['ppo'], label='PPO', linewidth=2)
 ax1.fill_between(ppo_time_5, ppo_min_5, ppo_max_5, color=COLORS['ppo'], alpha=0.1)
 
-# Add VTR line to first plot
-ax1.axhline(y=2733, color=COLORS['vtr'], linestyle='--', linewidth=2, label='VTR opt')
+# Add VTR star marker to both plots at y=2733, x=0 (on the y-axis)
+ax1.scatter([0], [2733], color=COLORS['vtr'], s=300, marker='*', label='VTR', edgecolor='black', linewidth=1.5, zorder=10)
+ax2.scatter([0], [2733], color=COLORS['vtr'], s=300, marker='*', label='VTR', edgecolor='black', linewidth=1.5, zorder=10)
 
 ax1.set_xlabel('Wall Clock Time (s)', fontsize=12)
 ax1.set_ylabel('HPWL', fontsize=12)
@@ -137,9 +137,6 @@ ax2.plot(mcts_time_15, mcts_mean_15, color=COLORS['mcts'], linewidth=2)
 ax2.fill_between(mcts_time_15, mcts_min_15, mcts_max_15, color=COLORS['mcts'], alpha=0.1)
 ax2.plot(ppo_time_15, ppo_mean_15, color=COLORS['ppo'], linewidth=2)
 ax2.fill_between(ppo_time_15, ppo_min_15, ppo_max_15, color=COLORS['ppo'], alpha=0.1)
-
-# Add VTR line to second plot
-ax2.axhline(y=2733, color=COLORS['vtr'], linestyle='--', linewidth=2)
 
 ax2.set_xlabel('Wall Clock Time (s)', fontsize=12)
 ax2.set_title('15 blocks n=100', fontsize=14, pad=15)
