@@ -196,16 +196,24 @@ if __name__ == "__main__":
     # Calculate and print statistics for each simulation budget
     print("\nStatistics by simulation budget:")
     for budget in simulation_budgets:
-        # Get HPWL values for this budget
-        hpwl_values = [results['best_hpwl'][i] for i in range(len(results['simulation_budgets'])) 
-                      if results['simulation_budgets'][i] == budget]
+        # Get HPWL values and times for this budget
+        budget_indices = [i for i in range(len(results['simulation_budgets'])) 
+                        if results['simulation_budgets'][i] == budget]
         
-        if hpwl_values:  # Only calculate if we have values for this budget
+        if budget_indices:  # Only calculate if we have values for this budget
+            hpwl_values = [results['best_hpwl'][i] for i in budget_indices]
+            time_values = [results['wall_clock_time'][i] for i in budget_indices]
+            
             avg_hpwl = np.mean(hpwl_values)
             std_hpwl = np.std(hpwl_values)
+            avg_time = np.mean(time_values)
+            std_time = np.std(time_values)
+            
             print(f"\nSimulation budget {budget}:")
             print(f"  Average HPWL: {avg_hpwl:.2f}")
-            print(f"  Standard Deviation: {std_hpwl:.2f}")
+            print(f"  HPWL Standard Deviation: {std_hpwl:.2f}")
+            print(f"  Average Time: {avg_time:.2f} seconds")
+            print(f"  Time Standard Deviation: {std_time:.2f} seconds")
             print(f"  Number of models: {len(hpwl_values)}")
     
     ray.shutdown()
