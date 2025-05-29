@@ -83,11 +83,16 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model_dir_pool",
         nargs="+", 
-        default=["/home/swang848/efficientalphazero/results_RL4RS/c15b_mcts_RL4RS_connections__7119",
-                 "/home/swang848/efficientalphazero/results_RL4RS/c15b_mcts_RL4RS_connections_3805",
-                 "/home/swang848/efficientalphazero/results_RL4RS/c15b_mcts_RL4RS_default_5843",
-                 "/home/swang848/efficientalphazero/results_RL4RS/c15b_mcts_RL4RS_sink_342",
-                 "/home/swang848/efficientalphazero/results_RL4RS/c15b_mcts_RL4RS_source_1344"],
+        # default=["/home/swang848/efficientalphazero/results_RL4RS/c15b_gumbel_RL4RS_connections__9144",
+        #          "/home/swang848/efficientalphazero/results_RL4RS/c15b_gumbel_RL4RS_connections_5580",
+        #          "/home/swang848/efficientalphazero/results_RL4RS/c15b_gumbel_RL4RS_default_6757",
+        #          "/home/swang848/efficientalphazero/results_RL4RS/c15b_gumbel_RL4RS_sink_3229",
+        #          "/home/swang848/efficientalphazero/results_RL4RS/c15b_gumbel_RL4RS_source_1791"],
+        default=["/home/swang848/efficientalphazero/results_RL4RS/c5b_gumbel_RL4RS_connections__5371",
+                 "/home/swang848/efficientalphazero/results_RL4RS/c5b_gumbel_RL4RS_connections_420",
+                 "/home/swang848/efficientalphazero/results_RL4RS/c5b_gumbel_RL4RS_default_1882",
+                 "/home/swang848/efficientalphazero/results_RL4RS/c5b_gumbel_RL4RS_sink_5224",
+                 "/home/swang848/efficientalphazero/results_RL4RS/c5b_gumbel_RL4RS_source_1664"],
         help="List of model directories to evaluate"
     )
     parser.add_argument("--device_workers", default="cuda", type=str)
@@ -95,15 +100,15 @@ if __name__ == "__main__":
     parser.add_argument("--amp", action="store_true")
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--seed", default=0, type=int)
-    parser.add_argument("--num_target_blocks", default=15, type=int)
-    parser.add_argument("--c_init", default=3.0, type=float)
+    parser.add_argument("--num_target_blocks", default=5, type=int)
+    parser.add_argument("--c_init", default=2.5, type=float)
     parser.add_argument("--num_envs_per_worker", default=1, type=int)
     parser.add_argument("--value_support_min", default=-1, type=int)
     parser.add_argument("--value_support_max", default=0, type=int)
     parser.add_argument("--value_support_delta", default=0.1, type=float)
-    parser.add_argument("--forced_exploration", action="store_true")
-    parser.add_argument("--k", default=2.0, type=float)
-    parser.add_argument("--percentage", default=0.2, type=float)
+    parser.add_argument("--m_top", default=4, type=int)
+    parser.add_argument("--c_visit", default=8, type=int)
+    parser.add_argument("--c_scale", default=1.0, type=float)
     args = parser.parse_args()
 
     sub_dir = datetime.now().strftime("%d%m%Y_%H%M")
@@ -196,16 +201,24 @@ if __name__ == "__main__":
     # Calculate and print statistics for each simulation budget
     print("\nStatistics by simulation budget:")
     for budget in simulation_budgets:
-        # Get HPWL values for this budget
-        hpwl_values = [results['best_hpwl'][i] for i in range(len(results['simulation_budgets'])) 
-                      if results['simulation_budgets'][i] == budget]
+        # Get HPWL values and times for this budget
+        budget_indices = [i for i in range(len(results['simulation_budgets'])) 
+                        if results['simulation_budgets'][i] == budget]
         
-        if hpwl_values:  # Only calculate if we have values for this budget
+        if budget_indices:  # Only calculate if we have values for this budget
+            hpwl_values = [results['best_hpwl'][i] for i in budget_indices]
+            time_values = [results['wall_clock_time'][i] for i in budget_indices]
+            
             avg_hpwl = np.mean(hpwl_values)
             std_hpwl = np.std(hpwl_values)
+            avg_time = np.mean(time_values)
+            std_time = np.std(time_values)
+            
             print(f"\nSimulation budget {budget}:")
             print(f"  Average HPWL: {avg_hpwl:.2f}")
-            print(f"  Standard Deviation: {std_hpwl:.2f}")
+            print(f"  HPWL Standard Deviation: {std_hpwl:.2f}")
+            print(f"  Average Time: {avg_time:.2f} seconds")
+            print(f"  Time Standard Deviation: {std_time:.2f} seconds")
             print(f"  Number of models: {len(hpwl_values)}")
     
     ray.shutdown()

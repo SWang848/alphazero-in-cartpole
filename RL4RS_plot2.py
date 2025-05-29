@@ -7,7 +7,16 @@ from datetime import datetime
 import seaborn as sns
 
 # Set the style for better-looking plots with white background
-sns.set_theme(style="whitegrid", rc={"figure.facecolor": "white", "axes.facecolor": "white"})
+sns.set_theme(style="whitegrid", rc={
+    "figure.facecolor": "white", 
+    "axes.facecolor": "white",
+    "font.size": 18,  # Increase base font size
+    "axes.labelsize": 20,  # Increase axis label size
+    "axes.titlesize": 24,  # Increase title size
+    "xtick.labelsize": 18,  # Increase tick label size
+    "ytick.labelsize": 18,  # Increase tick label size
+    "legend.fontsize": 18  # Increase legend font size
+})
 
 # Define a modern color palette
 COLORS = {
@@ -118,10 +127,10 @@ ax1.fill_between(ppo_time_5, ppo_min_5, ppo_max_5, color=COLORS['ppo'], alpha=0.
 ax1.scatter([0], [2733], color=COLORS['vtr'], s=300, marker='*', label='VTR', edgecolor='black', linewidth=1.5, zorder=10)
 ax2.scatter([0], [2733], color=COLORS['vtr'], s=300, marker='*', label='VTR', edgecolor='black', linewidth=1.5, zorder=10)
 
-ax1.set_xlabel('Wall Clock Time (s)', fontsize=12)
-ax1.set_ylabel('HPWL', fontsize=12)
-ax1.set_title('5 blocks n=50', fontsize=14, pad=15)
-ax1.legend(fontsize=10, loc='upper right')
+ax1.set_xlabel('Wall Clock Time (s)', fontsize=20)
+ax1.set_ylabel('HPWL', fontsize=20)
+ax1.set_title('5 components #sims=50', fontsize=24, pad=15)
+ax1.legend(fontsize=18, loc='upper right')
 ax1.grid(True, alpha=0.3)
 ax1.margins(x=0)
 
@@ -138,8 +147,8 @@ ax2.fill_between(mcts_time_15, mcts_min_15, mcts_max_15, color=COLORS['mcts'], a
 ax2.plot(ppo_time_15, ppo_mean_15, color=COLORS['ppo'], linewidth=2)
 ax2.fill_between(ppo_time_15, ppo_min_15, ppo_max_15, color=COLORS['ppo'], alpha=0.1)
 
-ax2.set_xlabel('Wall Clock Time (s)', fontsize=12)
-ax2.set_title('15 blocks n=100', fontsize=14, pad=15)
+ax2.set_xlabel('Wall Clock Time (s)', fontsize=20)
+ax2.set_title('15 components #sims=100', fontsize=24, pad=15)
 ax2.grid(True, alpha=0.3)
 ax2.margins(x=0)
 
@@ -168,4 +177,8 @@ ax2.set_yticks(y_ticks_15)
 # Adjust layout to prevent overlap
 plt.tight_layout()
 
+# Save as PNG
 plt.savefig('comparison_plot.png', dpi=300, bbox_inches='tight')
+
+# Save as SVG with high quality
+plt.savefig('comparison_plot.svg', format='svg', bbox_inches='tight', dpi=300)
